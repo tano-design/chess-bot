@@ -1,0 +1,11 @@
+{
+  "name": "tanobot-trainer",
+  "private": true,
+  "type": "module",
+  "description": "Rebuilds public/chess/tano-book.json from tano's chess.com games",
+  "scripts": { "train": "node build-book.mjs", "train:fast": "node build-book.mjs --fast" },
+  "dependencies": {
+    "chess.js": "1.4.0",
+    "stockfish": "19.0.1"
+  }
+}
