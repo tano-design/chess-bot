@@ -775,3 +775,4 @@ export function mount(base) {
   new MutationObserver(() => { if (q) return; q = true; requestAnimationFrame(() => { q = false; place(); }); })
     .observe(document.body, { childList: true, subtree: true });
 }
+
