@@ -12,29 +12,31 @@ import { Chess } from "./chess.js";
 const NAME = "TANOBOT";
 const PINK = "#E68DF9";               // emphasis color (dot, highlights, move hints)
 const PINK_DARK = "#a24db5";          // dot flicker color on hover
-const BRAND_FONT = '"Monument Grotesk", "Monument Grotesk Variable", "ABC Monument Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif';
-const MONO_FONT = '"Monument Grotesk Mono", "ABC Monument Grotesk Mono", "Monument Grotesk Mono Variable", ' + BRAND_FONT;
+// The site's web font first, so every visitor (and your own Mac, even with Monument installed locally) gets the same metrics.
+const BRAND_FONT = '"Monument Grotesk Variable", "Monument Grotesk", "ABC Monument Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif';
+const MONO_FONT = BRAND_FONT;          // labels, status, ratings
+// The TANOBOT title uses exactly the TanoLLM title's font, size and dot nudge, so the two match everywhere.
+const TITLE_FONT = '"Monument Grotesk Mono", "ABC Monument Grotesk Mono", "Monument Grotesk Mono Variable", "Monument Grotesk", "Monument Grotesk Variable", "ABC Monument Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif';
 const NUM_FONT = '"ocr-a-std", "OCR A Std", "OCR-A", "OCR A", monospace'; // ratings + move list
 const FONT_CSS = "https://use.typekit.net/xnk0one.css"; // tano's Adobe Fonts kit (has OCR-A)
 const TITLE_SIZE = "1.1rem";          // TANOBOT title + buttons, same as the TanoLLM title
 const BODY_SIZE = "1.1rem";           // body text, matches the site
 const SMALL_SIZE = "0.85rem";
-const HEADER_SIZE = "1.6rem";         // "Trained on 598 of tano's games..." header, same as the TanoLLM greeting         // labels, move list, stats
+const HEADER_SIZE = "1.6rem";         // header line under TANOBOT, same size as the TanoLLM greeting
 const BOARD_MAX = "min(680px, calc(100vh - 3rem))"; // biggest the board gets on desktop (also never taller than the window)
 const PANEL_MAX = "380px";            // widest the text panel gets beside the board
 const TWO_COLUMN_AT = 760;            // container width (px) where the panel moves beside the board
 const RADIUS = "0";                   // corners on buttons and board
 
-// Filled buttons (NEW GAME, selected PLAY AS), like the site's buttons: light grey on dark, bold.
-const FILL = { dark: { bg: "#D9D9D9", fg: "#191919" }, light: { bg: "#191919", fg: "#D9D9D9" } };
-const BTN_HEIGHT = 38;                // button height in pixels
-const BTN_TEXT_NUDGE = 0;             // moves button text up (positive) or down (negative), in pixels
-const MOBILE_BTN_TEXT_NUDGE = 0;      // same, on phones
+// Buttons, styled like the site's grey buttons.
+const BTN_BG = "#767776";             // site button grey (All Projects, 3D & Motion)
+const BTN_FG = "#ffffff";
+const BTN_SIZE = "1rem";              // button text size; button height follows it
+const BTN_PAD = ".7em 1em";           // space around the button text (top/bottom, left/right), scales with BTN_SIZE
 
 // Pink dot next to TANOBOT: moves it up (positive) or down (negative), same values as the TanoLLM title.
-// (Text is trimmed to its capital letters, so 0 should already be centered.)
-const TITLE_DOT_NUDGE = 0;
-const MOBILE_TITLE_DOT_NUDGE = 0;
+const TITLE_DOT_NUDGE = 2.5;          // same as TanoLLM
+const MOBILE_TITLE_DOT_NUDGE = 0.5;   // same as TanoLLM
 
 // Board colors per theme. Pieces: --pl light body, --pk dark body, --ps outline, --pd black-piece details.
 const BOARD = {
@@ -204,18 +206,18 @@ const css = `
   .panel { display: contents; }
   .title { order: 1; } .lede { order: 2; } .stats { order: 3; }
   .board-col { order: 4; margin: .4rem 0 .2rem; display: flex; flex-direction: column; gap: .75rem; min-width: 0; }
-  .wrap { --btn-nudge: ${MOBILE_BTN_TEXT_NUDGE}px; --dot-nudge: ${MOBILE_TITLE_DOT_NUDGE}px; }
+  .wrap { --dot-nudge: ${MOBILE_TITLE_DOT_NUDGE}px; }
   .status { order: 5; } .row-btns { order: 6; } .side-pick { order: 7; } .move-list { order: 8; }
   .row-btns { display: flex; }
-  .row-btns .btn { flex: 1 1 auto; text-align: center; white-space: nowrap; padding-left: 8px; padding-right: 8px; }
+  .row-btns .btn { flex: 1 1 auto; white-space: nowrap; }
   .seg { width: 100%; } .seg button { flex: 1; text-align: center; }
   @container (min-width: ${TWO_COLUMN_AT}px) {
     .layout { display: grid; gap: 1.5rem; grid-template-columns: minmax(0, ${BOARD_MAX}) minmax(0, ${PANEL_MAX}); align-items: start; }
     .panel { display: flex; flex-direction: column; gap: 1.1rem; }
     .board-col { margin: 0; order: 0; }
     .row-btns { display: flex; flex-wrap: wrap; }
-    .row-btns .btn { flex: none; padding-left: 14px; padding-right: 14px; }
-    .wrap { --btn-nudge: ${BTN_TEXT_NUDGE}px; --dot-nudge: ${TITLE_DOT_NUDGE}px; }
+    .row-btns .btn { flex: none; }
+    .wrap { --dot-nudge: ${TITLE_DOT_NUDGE}px; }
     .seg { width: max-content; } .seg button { flex: none; }
   }
 
@@ -250,7 +252,8 @@ const css = `
   .promo button:hover { background: var(--field); }
 
   /* Panel */
-  .title { display: flex; align-items: center; gap: 9px; font: 700 ${TITLE_SIZE}/1 ${MONO_FONT}; letter-spacing: .04em; text-transform: uppercase; color: var(--strong); }
+  .title { display: flex; align-items: center; gap: 9px; font-family: ${TITLE_FONT}; font-size: ${TITLE_SIZE}; font-weight: 700;
+           letter-spacing: .04em; text-transform: uppercase; color: var(--strong); }
   .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--pink); flex: none; transform: translateY(calc(var(--dot-nudge) * -1)); }
   .dot.think { animation: blink .9s steps(1, end) infinite; }
   @keyframes blink { 0%,100% { background: var(--pink); } 50% { background: var(--pink-dark); } }
@@ -263,18 +266,15 @@ const css = `
   .status .sub { color: var(--mute); min-height: 1.35em; }
   .status .sub b { color: var(--fg); font-weight: inherit; }
 
-  .seg { display: flex; border: 1px solid var(--btn-line); max-width: 100%; }
-  .seg button { height: ${BTN_HEIGHT - 2}px; padding: 0 12px var(--btn-nudge); display: inline-flex; align-items: center; justify-content: center; }
-  .seg button + button { border-left: 1px solid var(--btn-line); }
-  .seg button[aria-pressed="true"] { background: var(--fill-bg); color: var(--fill-fg); font-weight: 700; }
+  .seg { display: flex; gap: 6px; max-width: 100%; }
+  .seg button { box-shadow: inset 0 0 0 1px ${BTN_BG}; color: var(--fg); }
+  .seg button[aria-pressed="true"] { background: ${BTN_BG}; color: ${BTN_FG}; box-shadow: none; }
   .row-btns { gap: 8px; }
 
   button { all: unset; cursor: pointer; box-sizing: border-box; }
   button:focus-visible { outline: 1px solid var(--fg); outline-offset: 2px; }
-  .btn, .seg button { font: 500 ${SMALL_SIZE}/1 ${MONO_FONT}; letter-spacing: .04em; text-transform: uppercase; color: var(--strong); }
-  .btn { border: 1px solid var(--btn-line); height: ${BTN_HEIGHT}px; padding: 0 14px var(--btn-nudge); display: inline-flex; align-items: center; justify-content: center;
-         position: relative; overflow: hidden; border-radius: ${RADIUS}; }
-  .btn.primary { background: var(--fill-bg); color: var(--fill-fg); border-color: var(--fill-bg); font-weight: 700; }
+  .btn, .seg button { font: 500 ${BTN_SIZE}/1 ${BRAND_FONT}; padding: ${BTN_PAD}; display: inline-flex; align-items: center; justify-content: center; border-radius: ${RADIUS}; }
+  .btn { background: ${BTN_BG}; color: ${BTN_FG}; position: relative; overflow: hidden; }
   .btn:disabled { opacity: .35; cursor: default; }
   .btn::after, .seg button::after { content: ""; position: absolute; inset: 0; pointer-events: none; }
   .seg button { position: relative; overflow: hidden; }
@@ -373,7 +373,7 @@ function buildUI() {
       <p class="foot"></p>
       </div>
       <div class="panel">
-        <div class="title"><span class="dot"></span><span class="name t">${NAME}</span></div>
+        <div class="title"><span class="dot"></span><span class="name">${NAME}</span></div>
         <p class="lede"></p>
         <div class="stats"></div>
         <div class="side-pick">
@@ -429,7 +429,6 @@ function boot(base) {
     const t = BOARD[light ? "light" : "dark"];
     const s = wrap.style;
     s.setProperty("--sq-light", t.light); s.setProperty("--sq-dark", t.dark);
-    s.setProperty("--fill-bg", FILL[light ? "light" : "dark"].bg); s.setProperty("--fill-fg", FILL[light ? "light" : "dark"].fg);
     for (const k of ["pl", "pk", "ps", "pd"]) { s.setProperty("--w-" + k, t.white[k]); s.setProperty("--b-" + k, t.black[k]); }
   }
   applyTheme();
@@ -732,10 +731,10 @@ function boot(base) {
   function intro() {
     const lede = $(".lede"), stats = $(".stats"), foot = $(".foot");
     if (!BOOK) {
-      scramble(lede, "Trained on tano's chess.com games. Plays Chris's openings, habits, and mistakes.");
+      scramble(lede, "Built from tano's chess.com games. Plays Chris's openings, habits, and mistakes.");
       return;
     }
-    scramble(lede, `Trained on ${BOOK.games} of tano's chess.com games. Plays Chris's openings, habits, and mistakes.`);
+    scramble(lede, `Built from ${BOOK.games} of tano's chess.com games. Plays Chris's openings, habits, and mistakes.`);
     const r = BOOK.ratings || {};
     const cells = [["Rapid", r.rapid], ["Daily", r.daily], ["Blitz", r.blitz]].filter((c) => c[1]);
     stats.innerHTML = cells.map(([k]) => `<div class="stat"><div class="k">${k}</div><div class="v" data-v></div></div>`).join("");
