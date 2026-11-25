@@ -537,6 +537,13 @@ function boot(base) {
     try { localStorage.setItem(STORE_KEY, JSON.stringify({ moves: chess.history(), me, sidePref, orient, over })); } catch (e) {}
   }
   function restore() {
+    // testing: open the page with #test-win to get a mate-in-one (play Qxf7) and see the win celebration
+    if (/test-win/.test(location.hash)) {
+      const c = new Chess(); ["e4", "e5", "Bc4", "Nc6", "Qh5", "Nf6"].forEach((m) => c.move(m));
+      chess = c; me = "w"; sidePref = "w"; orient = "w"; over = null;
+      try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
+      return true;
+    }
     try {
       const s = JSON.parse(localStorage.getItem(STORE_KEY) || "null");
       if (!s) return false;
