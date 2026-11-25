@@ -190,7 +190,7 @@ function humanMove(chess, lines) {
 
 // ── UI ──────────────────────────────────────────────────────────────────────
 const css = `
-  :host { all: initial; display: block; }
+  :host { all: initial; display: block; visibility: inherit; }   /* "all: initial" would otherwise force it visible when the page hides it */
   * { box-sizing: border-box; margin: 0; padding: 0; }
   .wrap {
     --bg: #191919; --fg: rgba(255,255,255,.85); --strong: #fff; --mute: rgba(255,255,255,.42); --line: rgba(255,255,255,.12);
@@ -775,10 +775,10 @@ function boot(base) {
   function intro() {
     const lede = $(".lede"), stats = $(".stats"), foot = $(".foot");
     if (!BOOK) {
-      lede.textContent = "Built from tano's chess.com games. Plays Chris's openings, habits, and mistakes.";
+      lede.textContent = "Built from tano's chess.com games. Plays Chris's openings, instincts, and mistakes.";
       return;
     }
-    lede.textContent = (`Built from ${BOOK.games} of tano's chess.com games. Plays Chris's openings, habits, and mistakes.`);
+    lede.textContent = (`Built from ${BOOK.games} of tano's chess.com games. Plays Chris's openings, instincts, and mistakes.`);
     const r = BOOK.ratings || {};
     const cells = [["Rapid", r.rapid], ["Daily", r.daily], ["Blitz", r.blitz]].filter((c) => c[1]);
     const same = cells.map((c) => c[0]).join() === [...stats.querySelectorAll(".k")].map((k) => k.textContent).join();
