@@ -54,6 +54,7 @@ const BOOK_PLIES = 20;                // play from tano's opening memory for the
 const DEPTH = 9;                      // engine depth (desktop)
 const DEPTH_MOBILE = 8;               // engine depth (phones)
 const PIXEL_PIECES_BELOW = 768;
+const SECTION_GAP = "1.5rem";   // space between every block (title, intro, ratings, status, buttons, play as, moves)
 // phones only: the Cargo page has no padding (so the board lines up with HOME on desktop),
 // so the game adds its own side padding on phones, plus room at the bottom for the menu key
 const MOBILE_SIDE_PAD = "1.5rem";
@@ -209,7 +210,7 @@ const css = `
   }
   .wrap, .wrap * { transition: color .4s ease, border-color .4s ease; }
   /* phones / narrow columns: title, board, then status right under it */
-  .layout { display: flex; flex-direction: column; gap: 1.1rem; }
+  .layout { display: flex; flex-direction: column; gap: ${SECTION_GAP}; }
   .panel { display: contents; }
   .title { order: 1; } .lede { order: 2; } .stats { order: 3; }
   .board-col { order: 4; margin: .4rem 0 .2rem; display: flex; flex-direction: column; gap: .75rem; min-width: 0; }
@@ -221,7 +222,7 @@ const css = `
   .seg { width: 100%; } .seg button { flex: 1; text-align: center; }
   @container (min-width: ${TWO_COLUMN_AT}px) {
     .layout { display: grid; gap: 1.5rem; grid-template-columns: minmax(0, ${BOARD_MAX}) minmax(0, ${PANEL_MAX}); align-items: start; }
-    .panel { display: flex; flex-direction: column; gap: 1.1rem; }
+    .panel { display: flex; flex-direction: column; gap: ${SECTION_GAP}; }
     .board-col { margin: 0; order: 0; }
     .row-btns { display: flex; flex-wrap: wrap; }
     .row-btns .btn { flex: none; }
@@ -277,7 +278,7 @@ const css = `
   .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--pink); flex: none; transform: translateY(calc(var(--dot-nudge) * -1)); }
   .dot.think { animation: blink .9s steps(1, end) infinite; }
   @keyframes blink { 0%,100% { background: var(--pink); } 50% { background: var(--pink-dark); } }
-  .lede { color: var(--strong); font: 400 ${HEADER_SIZE}/1.15 ${BRAND_FONT}; min-height: 2.3em; }
+  .lede { color: var(--strong); font: 700 ${HEADER_SIZE}/1.15 ${BRAND_FONT}; min-height: 2.3em; }
   .stats { display: grid; grid-template-columns: repeat(3, auto); justify-content: start; gap: .2rem 1.4rem; }
   .stat .k, .label { font: 500 ${SMALL_SIZE}/1.2 ${MONO_FONT}; letter-spacing: .04em; text-transform: uppercase; color: var(--mute); }
   .stat .v { font: 500 ${BODY_SIZE}/1.3 ${MONO_FONT}; color: var(--strong); font-variant-numeric: tabular-nums; }
@@ -358,22 +359,46 @@ const pieceSvg = (color, type) => usePixels() ? pixelSvg(type) : `<svg viewBox="
 const NAMES = { p: "pawn", n: "knight", b: "bishop", r: "rook", q: "queen", k: "king" };
 
 const SCRAMBLE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#%&*+=/<>[]_-";
+const SCR_UP = "ABCDEFGHIJKLMNOPQRSTUVWXYZ", SCR_LO = "abcdefghijklmnopqrstuvwxyz", SCR_NUM = "0123456789";
+function scrChar(c) {
+  const pool = /[0-9]/.test(c) ? SCR_NUM : /[A-Z]/.test(c) ? SCR_UP : /[a-z]/.test(c) ? SCR_LO : "";
+  return pool ? pool[Math.floor(Math.random() * pool.length)] : c;
+}
+// Each character sits in a box locked to the width of its real letter, so the scrambled
+// text takes exactly the same space as the final text: no extra lines, no jumping spacing.
+// Words stay unbreakable, so line breaks happen in the same places as the final text.
 function scramble(el, text, ms = 900) {
   if (el.__scr) cancelAnimationFrame(el.__scr);
-  if (reduceMotion()) { el.textContent = text; return; }
+  if (reduceMotion() || !el.isConnected) { el.textContent = text; el.__scr = null; return; }
+  el.textContent = "";
+  const boxes = [];
+  for (const part of text.split(/( +)/)) {
+    if (!part) continue;
+    if (part.trim() === "") { el.appendChild(document.createTextNode(part)); continue; }
+    const word = document.createElement("span");
+    word.style.whiteSpace = "nowrap";
+    for (const c of part) {
+      const b = document.createElement("span");
+      b.textContent = c;
+      b.style.cssText = "display:inline-block;text-align:center;overflow:visible;white-space:pre";
+      word.appendChild(b); boxes.push([b, c]);
+    }
+    el.appendChild(word);
+  }
+  for (const [b] of boxes) b.style.width = b.getBoundingClientRect().width + "px";
+  const order = boxes.map((_, i) => i);
   const t0 = performance.now();
   const frame = (now) => {
     const p = Math.min(1, (now - t0) / ms);
-    const settled = Math.floor(p * text.length);
-    let out = "";
-    for (let i = 0; i < text.length; i++) {
-      const c = text[i];
-      out += i < settled || c === " " ? c : SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)];
+    const settled = Math.floor(p * boxes.length);
+    for (let i = 0; i < boxes.length; i++) {
+      const [b, c] = boxes[order[i]];
+      b.textContent = i < settled ? c : scrChar(c);
     }
-    el.textContent = out;
     if (p < 1 && el.isConnected) el.__scr = requestAnimationFrame(frame);
     else { el.textContent = text; el.__scr = null; }
   };
+  frame(t0);   // starts scrambled on the very first paint, then resolves
   el.__scr = requestAnimationFrame(frame);
 }
 
@@ -393,7 +418,7 @@ function buildUI() {
       <div class="panel">
         <div class="title"><span class="dot"></span><span class="name">${NAME}</span></div>
         <p class="lede"></p>
-        <div class="stats"></div>
+        <div class="stats">${["Rapid", "Daily", "Blitz"].map((k) => `<div class="stat"><div class="k">${k}</div><div class="v" data-v>${Array.from({ length: 4 }, () => scrChar("0")).join("")}</div></div>`).join("")}</div>
         <div class="side-pick">
           <div class="label" style="margin-bottom:.5rem">Play as</div>
           <div class="seg" role="group" aria-label="Play as">
@@ -538,9 +563,9 @@ function boot(base) {
   }
 
   // ── status line ──
-  let lastMain = "";
+  let lastMain = "", booted = false;   // the status line only scrambles after the page has loaded
   function status(main, sub, scr = true) {
-    if (main !== lastMain) { scr ? scramble(mainEl, main, 600) : (mainEl.textContent = main); lastMain = main; }
+    if (main !== lastMain) { scr && booted ? scramble(mainEl, main, 600) : (mainEl.textContent = main); lastMain = main; }
     subEl.innerHTML = sub || "";
   }
   function sourceText(src) {
@@ -756,7 +781,8 @@ function boot(base) {
     lede.textContent = (`Built from ${BOOK.games} of tano's chess.com games. Plays Chris's openings, habits, and mistakes.`);
     const r = BOOK.ratings || {};
     const cells = [["Rapid", r.rapid], ["Daily", r.daily], ["Blitz", r.blitz]].filter((c) => c[1]);
-    stats.innerHTML = cells.map(([k]) => `<div class="stat"><div class="k">${k}</div><div class="v" data-v></div></div>`).join("");
+    const same = cells.map((c) => c[0]).join() === [...stats.querySelectorAll(".k")].map((k) => k.textContent).join();
+    if (!same) stats.innerHTML = cells.map(([k]) => `<div class="stat"><div class="k">${k}</div><div class="v" data-v></div></div>`).join("");
     stats.querySelectorAll("[data-v]").forEach((el, i) => scramble(el, String(cells[i][1]), 700));
     const rec = BOOK.record || {};
     foot.textContent = `Real record ${rec.wins}W ${rec.losses}L ${rec.draws}D · Matches Stockfish's top move ${Math.round((BOOK.engineMatch || 0) * 100)}% of the time · Updated ${BOOK.built}`;
@@ -772,6 +798,7 @@ function boot(base) {
       if (over) refreshStatus();
       else if (resumed && chess.history().length) { started = true; chess.turn() === me ? refreshStatus() : botTurn(); }
       else newGame();
+      booted = true;
     });
   // warm the engine up while the visitor reads, so the first move out of book is quick
   setTimeout(() => { if (!engine) engine = makeEngine(); }, 1500);
