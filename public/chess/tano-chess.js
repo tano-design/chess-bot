@@ -479,7 +479,6 @@ function buildUI() {
         </div>
         <div class="row-btns">
           <button class="btn primary" data-act="new"><span class="t">New game</span></button>
-          <button class="btn" data-act="undo"><span class="t">Undo</span></button>
           <button class="btn" data-act="flip"><span class="t">Flip</span></button>
           <button class="btn" data-act="resign"><span class="t">Resign</span></button>
         </div>
@@ -639,7 +638,6 @@ function boot(base) {
   }
   function updateButtons() {
     const h = chess.history().length;
-    root.querySelector('[data-act="undo"]').disabled = botBusy || h === 0 || (me === "b" && h <= 1);
     root.querySelector('[data-act="resign"]').disabled = !!over || h < 2;
     root.querySelectorAll(".seg button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.side === sidePref)));
   }
@@ -859,15 +857,7 @@ function boot(base) {
     const act = b.dataset.act;
     if (act === "new") newGame();
     if (act === "flip") { orient = orient === "w" ? "b" : "w"; render(false); save(); }
-    if (act === "undo") {
-      gameId++; botBusy = false; boardWrap.classList.remove("busy"); dot.classList.remove("think");
-      if (engine) engine.stop();
-      over = null; selected = null; lastSource = null;
-      chess.undo();
-      if (chess.turn() !== me) chess.undo();
-      render(false); save(); refreshStatus();
-      if (chess.turn() !== me) botTurn();
-    }
+    // no undo: tano's call, you live with your moves
     if (act === "resign") {
       gameId++; botBusy = false; boardWrap.classList.remove("busy");
       over = { text: "You resigned", sub: "Respect. Tano does it all the time.", result: "resign" };
