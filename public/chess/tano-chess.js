@@ -14,19 +14,33 @@ const PINK = "#E68DF9";               // emphasis color (dot, highlights, move h
 const PINK_DARK = "#a24db5";          // dot flicker color on hover
 const BRAND_FONT = '"Monument Grotesk", "Monument Grotesk Variable", "ABC Monument Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif';
 const MONO_FONT = '"Monument Grotesk Mono", "ABC Monument Grotesk Mono", "Monument Grotesk Mono Variable", ' + BRAND_FONT;
+const NUM_FONT = '"ocr-a-std", "OCR A Std", "OCR-A", "OCR A", monospace'; // ratings + move list
+const FONT_CSS = "https://use.typekit.net/xnk0one.css"; // tano's Adobe Fonts kit (has OCR-A)
 const TITLE_SIZE = "1.1rem";          // TANOBOT title + buttons, same as the TanoLLM title
 const BODY_SIZE = "1.1rem";           // body text, matches the site
 const SMALL_SIZE = "0.85rem";         // labels, move list, stats
-const BOARD_MAX = "640px";            // biggest the board gets on desktop
+const BOARD_MAX = "min(680px, calc(100vh - 3rem))"; // biggest the board gets on desktop (also never taller than the window)
+const PANEL_MAX = "380px";            // widest the text panel gets beside the board
 const TWO_COLUMN_AT = 760;            // container width (px) where the panel moves beside the board
 const RADIUS = "0";                   // corners on buttons and board
 
+// Filled buttons (NEW GAME, selected PLAY AS), like the site's buttons: light grey on dark, bold.
+const FILL = { dark: { bg: "#D9D9D9", fg: "#191919" }, light: { bg: "#191919", fg: "#D9D9D9" } };
+const BTN_HEIGHT = 38;                // button height in pixels
+const BTN_TEXT_NUDGE = 1;             // moves button text up (positive) or down (negative), in pixels
+const MOBILE_BTN_TEXT_NUDGE = 0.5;    // same, on phones
+
+// Pink dot next to TANOBOT: moves it up (positive) or down (negative), same values as the TanoLLM title.
+const TITLE_DOT_NUDGE = 2.5;
+const MOBILE_TITLE_DOT_NUDGE = 0.5;
+
 // Board colors per theme. Pieces: --pl light body, --pk dark body, --ps outline, --pd black-piece details.
 const BOARD = {
-  dark:  { light: "#5c5c5c", dark: "#454545", coord: "rgba(255,255,255,.5)",
-           white: { pl: "#f2f2f2", pk: "#141414", ps: "#141414", pd: "#141414" },
-           black: { pl: "#141414", pk: "#141414", ps: "#141414", pd: "#d0d0d0" } },
-  light: { light: "#ececec", dark: "#bdbdbd", coord: "rgba(25,25,25,.45)",
+  // dark squares are the site background, so the board melts into the page and flips with the toggle
+  dark:  { light: "#2e2e2e", dark: "#191919",
+           white: { pl: "#ececec", pk: "#191919", ps: "#191919", pd: "#191919" },
+           black: { pl: "#0e0e0e", pk: "#6e6e6e", ps: "#0e0e0e", pd: "#0e0e0e" } },
+  light: { light: "#ececec", dark: "#D9D9D9",
            white: { pl: "#ffffff", pk: "#191919", ps: "#191919", pd: "#191919" },
            black: { pl: "#191919", pk: "#191919", ps: "#191919", pd: "#ececec" } },
 };
@@ -35,6 +49,7 @@ const BOARD = {
 const BOOK_PLIES = 20;                // play from tano's opening memory for the first 10 moves each
 const DEPTH = 9;                      // engine depth (desktop)
 const DEPTH_MOBILE = 8;               // engine depth (phones)
+const PIXEL_PIECES_BELOW = 768;       // on screens this narrow or less, use the pixel pieces (like the nav icons)
 const MULTIPV = 30;                   // how many moves the engine scores, so the bot can pick "human" ones
 const THINK_MS = [550, 1500];         // how long tano "thinks" (min, max), in milliseconds
 const RESIGN_CP = -700;               // tano considers resigning when he is this far behind (centipawns)
@@ -170,7 +185,7 @@ const css = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
   .wrap {
     --bg: #191919; --fg: rgba(255,255,255,.85); --strong: #fff; --mute: rgba(255,255,255,.42); --line: rgba(255,255,255,.12);
-    --field: rgba(255,255,255,.07); --btn-line: rgba(255,255,255,.18);
+    --field: rgba(255,255,255,.07); --btn-line: rgba(255,255,255,.18); --thumb: #3a3a3a;
     --glitch-hi: #ffffff; --glitch-lo: rgba(255,255,255,.25);
     --pink: ${PINK}; --pink-dark: ${PINK_DARK};
     font: ${BODY_SIZE}/1.35 ${BRAND_FONT}; color: var(--fg); -webkit-font-smoothing: antialiased;
@@ -178,7 +193,7 @@ const css = `
   }
   .wrap.light {
     --bg: #D9D9D9; --fg: rgba(25,25,25,.9); --strong: #191919; --mute: rgba(25,25,25,.55); --line: rgba(25,25,25,.15);
-    --field: rgba(25,25,25,.06); --btn-line: #AEAEAE;
+    --field: rgba(25,25,25,.06); --btn-line: #AEAEAE; --thumb: #AEAEAE;
     --glitch-hi: #e78cf9; --glitch-lo: #9d649f;
   }
   .wrap, .wrap * { transition: color .4s ease, border-color .4s ease; }
@@ -187,16 +202,18 @@ const css = `
   .panel { display: contents; }
   .title { order: 1; } .lede { order: 2; } .stats { order: 3; }
   .board-wrap { order: 4; margin: .4rem 0 .2rem; }
+  .wrap { --btn-nudge: ${MOBILE_BTN_TEXT_NUDGE}px; --dot-nudge: ${MOBILE_TITLE_DOT_NUDGE}px; }
   .status { order: 5; } .row-btns { order: 6; } .side-pick { order: 7; } .move-list { order: 8; } .foot { order: 9; }
   .row-btns { display: flex; }
   .row-btns .btn { flex: 1 1 auto; text-align: center; white-space: nowrap; padding-left: 8px; padding-right: 8px; }
   .seg { width: 100%; } .seg button { flex: 1; text-align: center; }
   @container (min-width: ${TWO_COLUMN_AT}px) {
-    .layout { display: grid; gap: 1.5rem; grid-template-columns: minmax(0, ${BOARD_MAX}) minmax(240px, 1fr); align-items: start; }
+    .layout { display: grid; gap: 1.5rem; grid-template-columns: minmax(0, ${BOARD_MAX}) minmax(0, ${PANEL_MAX}); align-items: start; }
     .panel { display: flex; flex-direction: column; gap: 1.1rem; }
     .board-wrap { margin: 0; order: 0; }
     .row-btns { display: flex; flex-wrap: wrap; }
     .row-btns .btn { flex: none; padding-left: 14px; padding-right: 14px; }
+    .wrap { --btn-nudge: ${BTN_TEXT_NUDGE}px; --dot-nudge: ${TITLE_DOT_NUDGE}px; }
     .seg { width: max-content; } .seg button { flex: none; }
   }
 
@@ -214,18 +231,14 @@ const css = `
                     border-radius: 50%; background: var(--pink); opacity: .85; pointer-events: none; }
   .sq.hint.cap::after { width: 86%; height: 86%; background: transparent; border: 3px solid var(--pink); opacity: .9; }
   .sq.over { box-shadow: inset 0 0 0 3px var(--pink); }
-  .coord { position: absolute; font: 600 clamp(8px, 1.6cqi, 11px)/1 ${MONO_FONT}; color: var(--coord); pointer-events: none; text-transform: lowercase; }
-  .coord.f { right: 4%; bottom: 3%; }
-  .coord.r { left: 4%; top: 4%; }
   .pc { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
   .pc svg { width: 100%; height: 100%; display: block; fill: var(--pk); }
-  .pc.w { --pl: var(--w-pl); --pk: var(--w-pk); --ps: var(--w-ps); --pd: var(--w-pd); }
-  .pc.b { --pl: var(--b-pl); --pk: var(--b-pk); --ps: var(--b-ps); --pd: var(--b-pd); }
+  .pc.w { --pl: var(--w-pl); --pk: var(--w-pk); --ps: var(--w-ps); --pd: var(--w-pd); --fc: var(--w-pl); }
+  .pc.b { --pl: var(--b-pl); --pk: var(--b-pk); --ps: var(--b-ps); --pd: var(--b-pd); --fc: var(--b-pk); }
   .pc.lift { opacity: .3; }
   .pc.slide { transition: transform .19s cubic-bezier(.3,.6,.3,1); }
   .ghost { position: absolute; z-index: 10; pointer-events: none; width: 12.5%; height: 12.5%; transform: translate(-50%, -50%) scale(1.12); }
   .board-wrap.busy { cursor: progress; }
-  .frame { position: absolute; inset: 0; border: 1px solid var(--line); pointer-events: none; z-index: 3; }
 
   /* promotion picker */
   .promo { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; background: color-mix(in srgb, var(--bg) 70%, transparent); }
@@ -236,29 +249,30 @@ const css = `
 
   /* Panel */
   .title { display: flex; align-items: center; gap: 9px; font: 700 ${TITLE_SIZE}/1 ${MONO_FONT}; letter-spacing: .04em; text-transform: uppercase; color: var(--strong); }
-  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--pink); flex: none; position: relative; top: -1px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--pink); flex: none; transform: translateY(calc(var(--dot-nudge) * -1)); }
   .dot.think { animation: blink .9s steps(1, end) infinite; }
   @keyframes blink { 0%,100% { background: var(--pink); } 50% { background: var(--pink-dark); } }
   .lede { color: var(--fg); min-height: 2.7em; }
   .stats { display: grid; grid-template-columns: repeat(3, auto); justify-content: start; gap: .2rem 1.4rem; }
   .stat .k, .label { font: 500 ${SMALL_SIZE}/1.2 ${MONO_FONT}; letter-spacing: .04em; text-transform: uppercase; color: var(--mute); }
-  .stat .v { font: 500 ${BODY_SIZE}/1.3 ${MONO_FONT}; color: var(--strong); font-variant-numeric: tabular-nums; }
+  .stat .v { font: 400 ${BODY_SIZE}/1.3 ${NUM_FONT}; color: var(--strong); }
   .status { border-top: 1px solid var(--line); padding-top: 1rem; display: flex; flex-direction: column; gap: .35rem; }
   .status .main { font: 700 ${TITLE_SIZE}/1.2 ${MONO_FONT}; letter-spacing: .04em; text-transform: uppercase; color: var(--strong); min-height: 1.2em; }
   .status .sub { color: var(--mute); min-height: 1.35em; }
   .status .sub b { color: var(--fg); font-weight: inherit; }
 
   .seg { display: flex; border: 1px solid var(--btn-line); max-width: 100%; }
-  .seg button { padding: 9px 12px 8px; }
+  .seg button { height: ${BTN_HEIGHT - 2}px; padding: 0 12px var(--btn-nudge); display: inline-flex; align-items: center; justify-content: center; }
   .seg button + button { border-left: 1px solid var(--btn-line); }
-  .seg button[aria-pressed="true"] { background: var(--strong); color: var(--bg); }
+  .seg button[aria-pressed="true"] { background: var(--fill-bg); color: var(--fill-fg); font-weight: 700; }
   .row-btns { gap: 8px; }
 
   button { all: unset; cursor: pointer; box-sizing: border-box; }
   button:focus-visible { outline: 1px solid var(--fg); outline-offset: 2px; }
   .btn, .seg button { font: 500 ${SMALL_SIZE}/1 ${MONO_FONT}; letter-spacing: .04em; text-transform: uppercase; color: var(--strong); }
-  .btn { border: 1px solid var(--btn-line); padding: 11px 14px 10px; position: relative; overflow: hidden; border-radius: ${RADIUS}; }
-  .btn.primary { background: var(--strong); color: var(--bg); border-color: var(--strong); }
+  .btn { border: 1px solid var(--btn-line); height: ${BTN_HEIGHT}px; padding: 0 14px var(--btn-nudge); display: inline-flex; align-items: center; justify-content: center;
+         position: relative; overflow: hidden; border-radius: ${RADIUS}; }
+  .btn.primary { background: var(--fill-bg); color: var(--fill-fg); border-color: var(--fill-bg); font-weight: 700; }
   .btn:disabled { opacity: .35; cursor: default; }
   .btn::after, .seg button::after { content: ""; position: absolute; inset: 0; pointer-events: none; }
   .seg button { position: relative; overflow: hidden; }
@@ -276,9 +290,13 @@ const css = `
   }
   .btn, .btn::after, .seg button, .seg button::after { transition: none; }
 
-  .moves { font: 400 ${SMALL_SIZE}/1.55 ${MONO_FONT}; color: var(--fg); font-variant-numeric: tabular-nums;
+  .moves { font: 400 ${SMALL_SIZE}/1.55 ${NUM_FONT}; color: var(--fg);
+           scrollbar-width: thin; scrollbar-color: var(--thumb) transparent;
            display: grid; grid-template-columns: 2.4em 5.5em 5.5em; justify-content: start; column-gap: .6em; max-height: 13.5em; overflow-y: auto; }
   .moves .n { color: var(--mute); }
+  .moves::-webkit-scrollbar { width: 4px; }
+  .moves::-webkit-scrollbar-track { background: transparent; }
+  .moves::-webkit-scrollbar-thumb { background: var(--thumb); border-radius: 999px; }
   .moves .cur { color: var(--pink); }
   .light .moves .cur { color: #a24db5; }
   .moves:empty::before { content: "No moves yet."; grid-column: 1 / -1; color: var(--mute); font-family: ${BRAND_FONT}; font-size: ${BODY_SIZE}; }
@@ -286,8 +304,31 @@ const css = `
   .err { color: var(--pink); }
 `;
 
+// Pixel pieces for phones: "#" is the piece; a 1-pixel outline is added around it automatically.
+const PIXEL = {
+  p: ["............", ".....##.....", "....####....", "....####....", ".....##.....", "....####....", ".....##.....", "....####....", "...######...", "..########..", ".##########.", ".##########."],
+  r: [".##.####.##.", ".##.####.##.", ".##########.", "..########..", "...######...", "...######...", "...######...", "...######...", "...######...", "..########..", ".##########.", ".##########."],
+  n: ["....##.#....", "...#######..", "..#########.", ".###.######.", ".##..######.", "......#####.", ".....######.", "....#######.", "...########.", "..########..", ".##########.", ".##########."],
+  b: [".....##.....", "....####....", "...####.#...", "...###.##...", "...##.###...", "...######...", "....####....", ".....##.....", "....####....", "..########..", ".##########.", ".##########."],
+  q: [".#...##...#.", ".#...##...#.", ".##..##..##.", ".###.##.###.", ".##########.", "..########..", "...######...", "...######...", "...######...", "..########..", ".##########.", ".##########."],
+  k: [".....##.....", "...######...", ".....##.....", ".....##.....", "..########..", ".##########.", ".##########.", "..########..", "...######...", "...######...", ".##########.", ".##########."],
+};
+const pixelCache = {};
+function pixelSvg(type) {
+  if (pixelCache[type]) return pixelCache[type];
+  const m = PIXEL[type], H = m.length + 2, W = m[0].length + 2;
+  const on = (x, y) => y >= 1 && y <= m.length && x >= 1 && x <= m[0].length && m[y - 1][x - 1] === "#";
+  let fill = "", line = "";
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    if (on(x, y)) fill += `<rect x="${x}" y="${y}" width="1" height="1"/>`;
+    else if (on(x - 1, y) || on(x + 1, y) || on(x, y - 1) || on(x, y + 1)) line += `<rect x="${x}" y="${y}" width="1" height="1"/>`;
+  }
+  return (pixelCache[type] = `<svg class="px" viewBox="-2.5 -3 ${W + 5} ${H + 5}" shape-rendering="crispEdges" aria-hidden="true"><g style="fill:var(--ps)">${line}</g><g style="fill:var(--fc)">${fill}</g></svg>`);
+}
+const usePixels = () => matchMedia(`(max-width: ${PIXEL_PIECES_BELOW}px)`).matches;
+
 const PIECES = {"wp":"<path d=\"M22.5 9c-2.21 0-4 1.79-4 4 0 .89.29 1.71.78 2.38C17.33 16.5 16 18.59 16 21c0 2.03.94 3.84 2.41 5.03-3 1.06-7.41 5.55-7.41 13.47h23c0-7.92-4.41-12.41-7.41-13.47 1.47-1.19 2.41-3 2.41-5.03 0-2.41-1.33-4.5-3.28-5.62.49-.67.78-1.49.78-2.38 0-2.21-1.79-4-4-4z\" stroke-width=\"1.5\" stroke-linecap=\"round\" style=\"fill:var(--pl);stroke:var(--ps)\"/>","wb":"<g fill-rule=\"evenodd\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"fill:none;stroke:var(--ps)\"><g stroke-linecap=\"butt\" style=\"fill:var(--pl)\"><path d=\"M9 36c3.39-.97 10.11.43 13.5-2 3.39 2.43 10.11 1.03 13.5 2 0 0 1.65.54 3 2-.68.97-1.65.99-3 .5-3.39-.97-10.11.46-13.5-1-3.39 1.46-10.11.03-13.5 1-1.354.49-2.323.47-3-.5 1.354-1.94 3-2 3-2z\"/><path d=\"M15 32c2.5 2.5 12.5 2.5 15 0 .5-1.5 0-2 0-2 0-2.5-2.5-4-2.5-4 5.5-1.5 6-11.5-5-15.5-11 4-10.5 14-5 15.5 0 0-2.5 1.5-2.5 4 0 0-.5.5 0 2z\"/><path d=\"M25 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 1 1 5 0z\"/></g><path d=\"M17.5 26h10M15 30h15m-7.5-14.5v5M20 18h5\" stroke-linejoin=\"miter\"/></g>","wn":"<g fill-rule=\"evenodd\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"fill:none;stroke:var(--ps)\"><path d=\"M22 10c10.5 1 16.5 8 16 29H15c0-9 10-6.5 8-21\" style=\"fill:var(--pl)\"/><path d=\"M24 18c.38 2.91-5.55 7.37-8 9-3 2-2.82 4.34-5 4-1.042-.94 1.41-3.04 0-3-1 0 .19 1.23-1 2-1 0-4.003 1-4-4 0-2 6-12 6-12s1.89-1.9 2-3.5c-.73-.994-.5-2-.5-3 1-1 3 2.5 3 2.5h2s.78-1.992 2.5-3c1 0 1 3 1 3\" style=\"fill:var(--pl)\"/><path d=\"M9.5 25.5a.5.5 0 1 1-1 0 .5.5 0 1 1 1 0zm5.433-9.75a.5 1.5 30 1 1-.866-.5.5 1.5 30 1 1 .866.5z\" style=\"fill:var(--pk)\"/></g>","wr":"<g fill-rule=\"evenodd\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"fill:var(--pl);stroke:var(--ps)\"><path d=\"M9 39h27v-3H9v3zm3-3v-4h21v4H12zm-1-22V9h4v2h5V9h5v2h5V9h4v5\" stroke-linecap=\"butt\"/><path d=\"M34 14l-3 3H14l-3-3\"/><path d=\"M31 17v12.5H14V17\" stroke-linecap=\"butt\" stroke-linejoin=\"miter\"/><path d=\"M31 29.5l1.5 2.5h-20l1.5-2.5\"/><path d=\"M11 14h23\" stroke-linejoin=\"miter\" style=\"fill:none\"/></g>","wq":"<g fill-rule=\"evenodd\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"fill:var(--pl);stroke:var(--ps)\"><path d=\"M8 12a2 2 0 1 1-4 0 2 2 0 1 1 4 0zm16.5-4.5a2 2 0 1 1-4 0 2 2 0 1 1 4 0zM41 12a2 2 0 1 1-4 0 2 2 0 1 1 4 0zM16 8.5a2 2 0 1 1-4 0 2 2 0 1 1 4 0zM33 9a2 2 0 1 1-4 0 2 2 0 1 1 4 0z\"/><path d=\"M9 26c8.5-1.5 21-1.5 27 0l2-12-7 11V11l-5.5 13.5-3-15-3 15-5.5-14V25L7 14l2 12z\" stroke-linecap=\"butt\"/><path d=\"M9 26c0 2 1.5 2 2.5 4 1 1.5 1 1 .5 3.5-1.5 1-1.5 2.5-1.5 2.5-1.5 1.5.5 2.5.5 2.5 6.5 1 16.5 1 23 0 0 0 1.5-1 0-2.5 0 0 .5-1.5-1-2.5-.5-2.5-.5-2 .5-3.5 1-2 2.5-2 2.5-4-8.5-1.5-18.5-1.5-27 0z\" stroke-linecap=\"butt\"/><path d=\"M11.5 30c3.5-1 18.5-1 22 0M12 33.5c6-1 15-1 21 0\" style=\"fill:none\"/></g>","wk":"<g fill-rule=\"evenodd\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"fill:none;stroke:var(--ps)\"><path d=\"M22.5 11.63V6M20 8h5\" stroke-linejoin=\"miter\"/><path d=\"M22.5 25s4.5-7.5 3-10.5c0 0-1-2.5-3-2.5s-3 2.5-3 2.5c-1.5 3 3 10.5 3 10.5\" stroke-linecap=\"butt\" stroke-linejoin=\"miter\" style=\"fill:var(--pl)\"/><path d=\"M11.5 37c5.5 3.5 15.5 3.5 21 0v-7s9-4.5 6-10.5c-4-6.5-13.5-3.5-16 4V27v-3.5c-3.5-7.5-13-10.5-16-4-3 6 5 10 5 10V37z\" style=\"fill:var(--pl)\"/><path d=\"M11.5 30c5.5-3 15.5-3 21 0m-21 3.5c5.5-3 15.5-3 21 0m-21 3.5c5.5-3 15.5-3 21 0\"/></g>","bp":"<path d=\"M22.5 9c-2.21 0-4 1.79-4 4 0 .89.29 1.71.78 2.38C17.33 16.5 16 18.59 16 21c0 2.03.94 3.84 2.41 5.03-3 1.06-7.41 5.55-7.41 13.47h23c0-7.92-4.41-12.41-7.41-13.47 1.47-1.19 2.41-3 2.41-5.03 0-2.41-1.33-4.5-3.28-5.62.49-.67.78-1.49.78-2.38 0-2.21-1.79-4-4-4z\" stroke-width=\"1.5\" stroke-linecap=\"round\" style=\"stroke:var(--ps)\"/>","bb":"<g fill-rule=\"evenodd\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"fill:none;stroke:var(--ps)\"><g stroke-linecap=\"butt\" style=\"fill:var(--pk)\"><path d=\"M9 36c3.39-.97 10.11.43 13.5-2 3.39 2.43 10.11 1.03 13.5 2 0 0 1.65.54 3 2-.68.97-1.65.99-3 .5-3.39-.97-10.11.46-13.5-1-3.39 1.46-10.11.03-13.5 1-1.354.49-2.323.47-3-.5 1.354-1.94 3-2 3-2z\"/><path d=\"M15 32c2.5 2.5 12.5 2.5 15 0 .5-1.5 0-2 0-2 0-2.5-2.5-4-2.5-4 5.5-1.5 6-11.5-5-15.5-11 4-10.5 14-5 15.5 0 0-2.5 1.5-2.5 4 0 0-.5.5 0 2z\"/><path d=\"M25 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 1 1 5 0z\"/></g><path d=\"M17.5 26h10M15 30h15m-7.5-14.5v5M20 18h5\" stroke-linejoin=\"miter\" style=\"stroke:var(--pd)\"/></g>","bn":"<g fill-rule=\"evenodd\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"fill:none;stroke:var(--ps)\"><path d=\"M22 10c10.5 1 16.5 8 16 29H15c0-9 10-6.5 8-21\" style=\"fill:var(--pk)\"/><path d=\"M24 18c.38 2.91-5.55 7.37-8 9-3 2-2.82 4.34-5 4-1.042-.94 1.41-3.04 0-3-1 0 .19 1.23-1 2-1 0-4.003 1-4-4 0-2 6-12 6-12s1.89-1.9 2-3.5c-.73-.994-.5-2-.5-3 1-1 3 2.5 3 2.5h2s.78-1.992 2.5-3c1 0 1 3 1 3\" style=\"fill:var(--pk)\"/><path d=\"M9.5 25.5a.5.5 0 1 1-1 0 .5.5 0 1 1 1 0zm5.433-9.75a.5 1.5 30 1 1-.866-.5.5 1.5 30 1 1 .866.5z\" style=\"fill:var(--pd);stroke:var(--pd)\"/><path d=\"M24.55 10.4l-.45 1.45.5.15c3.15 1 5.65 2.49 7.9 6.75S35.75 29.06 35.25 39l-.05.5h2.25l.05-.5c.5-10.06-.88-16.85-3.25-21.34-2.37-4.49-5.79-6.64-9.19-7.16l-.51-.1z\" style=\"fill:var(--pd);stroke:none\"/></g>","br":"<g fill-rule=\"evenodd\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"stroke:var(--ps)\"><path d=\"M9 39h27v-3H9v3zm3.5-7l1.5-2.5h17l1.5 2.5h-20zm-.5 4v-4h21v4H12z\" stroke-linecap=\"butt\"/><path d=\"M14 29.5v-13h17v13H14z\" stroke-linecap=\"butt\" stroke-linejoin=\"miter\"/><path d=\"M14 16.5L11 14h23l-3 2.5H14zM11 14V9h4v2h5V9h5v2h5V9h4v5H11z\" stroke-linecap=\"butt\"/><path d=\"M12 35.5h21m-20-4h19m-18-2h17m-17-13h17M11 14h23\" stroke-width=\"1\" stroke-linejoin=\"miter\" style=\"fill:none;stroke:var(--pd)\"/></g>","bq":"<g fill-rule=\"evenodd\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"stroke:var(--ps)\"><g style=\"stroke:none\"><circle cx=\"6\" cy=\"12\" r=\"2.75\"/><circle cx=\"14\" cy=\"9\" r=\"2.75\"/><circle cx=\"22.5\" cy=\"8\" r=\"2.75\"/><circle cx=\"31\" cy=\"9\" r=\"2.75\"/><circle cx=\"39\" cy=\"12\" r=\"2.75\"/></g><path d=\"M9 26c8.5-1.5 21-1.5 27 0l2.5-12.5L31 25l-.3-14.1-5.2 13.6-3-14.5-3 14.5-5.2-13.6L14 25 6.5 13.5 9 26z\" stroke-linecap=\"butt\"/><path d=\"M9 26c0 2 1.5 2 2.5 4 1 1.5 1 1 .5 3.5-1.5 1-1.5 2.5-1.5 2.5-1.5 1.5.5 2.5.5 2.5 6.5 1 16.5 1 23 0 0 0 1.5-1 0-2.5 0 0 .5-1.5-1-2.5-.5-2.5-.5-2 .5-3.5 1-2 2.5-2 2.5-4-8.5-1.5-18.5-1.5-27 0z\" stroke-linecap=\"butt\"/><path d=\"M11 38.5a35 35 1 0 0 23 0\" stroke-linecap=\"butt\" style=\"fill:none\"/><path d=\"M11 29a35 35 1 0 1 23 0m-21.5 2.5h20m-21 3a35 35 1 0 0 22 0m-23 3a35 35 1 0 0 24 0\" style=\"fill:none;stroke:var(--pd)\"/></g>","bk":"<g fill-rule=\"evenodd\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"fill:none;stroke:var(--ps)\"><path d=\"M22.5 11.63V6\" stroke-linejoin=\"miter\"/><path d=\"M22.5 25s4.5-7.5 3-10.5c0 0-1-2.5-3-2.5s-3 2.5-3 2.5c-1.5 3 3 10.5 3 10.5\" stroke-linecap=\"butt\" stroke-linejoin=\"miter\" style=\"fill:var(--pk)\"/><path d=\"M11.5 37c5.5 3.5 15.5 3.5 21 0v-7s9-4.5 6-10.5c-4-6.5-13.5-3.5-16 4V27v-3.5c-3.5-7.5-13-10.5-16-4-3 6 5 10 5 10V37z\" style=\"fill:var(--pk)\"/><path d=\"M20 8h5\" stroke-linejoin=\"miter\"/><path d=\"M32 29.5s8.5-4 6.03-9.65C34.15 14 25 18 22.5 24.5l.01 2.1-.01-2.1C20 18 9.906 14 6.997 19.85c-2.497 5.65 4.853 9 4.853 9\" style=\"stroke:var(--pd)\"/><path d=\"M11.5 30c5.5-3 15.5-3 21 0m-21 3.5c5.5-3 15.5-3 21 0m-21 3.5c5.5-3 15.5-3 21 0\" style=\"stroke:var(--pd)\"/></g>"};
-const pieceSvg = (color, type) => `<svg viewBox="0 0 45 45" aria-hidden="true">${PIECES[color + type]}</svg>`;
+const pieceSvg = (color, type) => usePixels() ? pixelSvg(type) : `<svg viewBox="0 0 45 45" aria-hidden="true">${PIECES[color + type]}</svg>`;
 const NAMES = { p: "pawn", n: "knight", b: "bishop", r: "rook", q: "queen", k: "king" };
 
 const SCRAMBLE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#%&*+=/<>[]_-";
@@ -319,7 +360,6 @@ function buildUI() {
     <div class="layout">
       <div class="board-wrap" aria-label="Chess board">
         <div class="board"></div>
-        <div class="frame"></div>
         <div class="promo" hidden><div class="row"></div></div>
       </div>
       <div class="panel">
@@ -352,6 +392,10 @@ function buildUI() {
 
 function boot(base) {
   BASE = base;
+  // load tano's Adobe Fonts kit (OCR-A) once, unless the site already has it
+  if (FONT_CSS && !document.querySelector(`link[href="${FONT_CSS}"]`)) {
+    const l = document.createElement("link"); l.rel = "stylesheet"; l.href = FONT_CSS; document.head.appendChild(l);
+  }
   const { host, root } = buildUI();
   const $ = (s) => root.querySelector(s);
   const wrap = $(".wrap"), boardEl = $(".board"), boardWrap = $(".board-wrap");
@@ -375,10 +419,12 @@ function boot(base) {
     wrap.classList.toggle("light", light);
     const t = BOARD[light ? "light" : "dark"];
     const s = wrap.style;
-    s.setProperty("--sq-light", t.light); s.setProperty("--sq-dark", t.dark); s.setProperty("--coord", t.coord);
+    s.setProperty("--sq-light", t.light); s.setProperty("--sq-dark", t.dark);
+    s.setProperty("--fill-bg", FILL[light ? "light" : "dark"].bg); s.setProperty("--fill-fg", FILL[light ? "light" : "dark"].fg);
     for (const k of ["pl", "pk", "ps", "pd"]) { s.setProperty("--w-" + k, t.white[k]); s.setProperty("--b-" + k, t.black[k]); }
   }
   applyTheme();
+  try { matchMedia(`(max-width: ${PIXEL_PIECES_BELOW}px)`).addEventListener("change", () => render(false)); } catch (e) {}
   new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 
   // ── save / restore ──
@@ -424,8 +470,6 @@ function boot(base) {
       if (h) el.classList.add("hint"), h.captured && el.classList.add("cap");
       const p = chess.get(sq);
       let html = "";
-      if (i % 8 === 0) html += `<span class="coord r">${sq[1]}</span>`;
-      if (i >= 56) html += `<span class="coord f">${sq[0]}</span>`;
       if (p) html += `<div class="pc ${p.color}" data-p="${p.color}${p.type}">${pieceSvg(p.color, p.type)}</div>`;
       el.innerHTML = html;
     }
