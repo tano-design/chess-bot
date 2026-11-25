@@ -204,10 +204,11 @@ const css = `
   /* phones / narrow columns: title, board, then status right under it */
   .layout { display: flex; flex-direction: column; gap: 1.1rem; }
   .panel { display: contents; }
-  .title { order: 1; } .lede { order: 2; } .stats { order: 3; }
+  .title { order: 1; } .stats { order: 3; }
   .board-col { order: 4; margin: .4rem 0 .2rem; display: flex; flex-direction: column; gap: .75rem; min-width: 0; }
   .wrap { --dot-nudge: ${MOBILE_TITLE_DOT_NUDGE}px; }
-  .status { order: 5; } .row-btns { order: 6; } .side-pick { order: 7; } .move-list { order: 8; }
+  .foot { order: 5; margin-top: -.35rem; }
+  .status { order: 6; } .row-btns { order: 7; } .side-pick { order: 8; } .move-list { order: 9; }
   .row-btns { display: flex; }
   .row-btns .btn { flex: 1 1 auto; white-space: nowrap; }
   .seg { width: 100%; } .seg button { flex: 1; text-align: center; }
@@ -219,6 +220,17 @@ const css = `
     .row-btns .btn { flex: none; }
     .wrap { --dot-nudge: ${TITLE_DOT_NUDGE}px; }
     .seg { width: max-content; } .seg button { flex: none; }
+    /* real record sits in the right column, bottom edge level with the board's bottom edge;
+       if it wraps to two lines it grows upward */
+    .panel { align-self: stretch; }
+    .foot { order: 10; margin-top: auto; }
+  }
+  /* wide enough that the panel fits beside the board: panel height follows the board,
+     the move list scrolls, so the record line always lands on the board's bottom edge */
+  @container (min-width: 1000px) {
+    .panel { height: 0; min-height: 100%; }
+    .move-list { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+    .move-list .moves { flex: 1 1 auto; min-height: 3em; max-height: none; align-content: start; }
   }
 
   /* Board */
@@ -257,7 +269,7 @@ const css = `
   .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--pink); flex: none; transform: translateY(calc(var(--dot-nudge) * -1)); }
   .dot.think { animation: blink .9s steps(1, end) infinite; }
   @keyframes blink { 0%,100% { background: var(--pink); } 50% { background: var(--pink-dark); } }
-  .lede { color: var(--strong); font-size: ${HEADER_SIZE}; line-height: 1.15; min-height: 2.3em; }
+  .lede { color: var(--strong); font: 700 ${BODY_SIZE}/1.3 ${BRAND_FONT}; margin: .2rem 0 0; }
   .stats { display: grid; grid-template-columns: repeat(3, auto); justify-content: start; gap: .2rem 1.4rem; }
   .stat .k, .label { font: 500 ${SMALL_SIZE}/1.2 ${MONO_FONT}; letter-spacing: .04em; text-transform: uppercase; color: var(--mute); }
   .stat .v { font: 500 ${BODY_SIZE}/1.3 ${MONO_FONT}; color: var(--strong); font-variant-numeric: tabular-nums; }
@@ -303,7 +315,6 @@ const css = `
   .light .moves .cur { color: #a24db5; }
   .moves:empty::before { content: "No moves yet."; grid-column: 1 / -1; color: var(--mute); font-family: ${BRAND_FONT}; font-size: ${BODY_SIZE}; }
   .foot { color: var(--mute); font-size: ${SMALL_SIZE}; line-height: 1.4; }
-  @container (min-width: ${TWO_COLUMN_AT}px) { .foot { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } }
   /* Monument Grotesk has tall built-in space above the capitals, which pushes text down in buttons and
      next to the dot. Trim every label to its cap height so centering is optical, not font-metric. */
   .t { display: block; text-box: trim-both cap alphabetic; }
@@ -370,11 +381,9 @@ function buildUI() {
         <div class="board"></div>
         <div class="promo" hidden><div class="row"></div></div>
       </div>
-      <p class="foot"></p>
       </div>
       <div class="panel">
         <div class="title"><span class="dot"></span><span class="name">${NAME}</span></div>
-        <p class="lede"></p>
         <div class="stats"></div>
         <div class="side-pick">
           <div class="label" style="margin-bottom:.5rem">Play as</div>
@@ -388,11 +397,12 @@ function buildUI() {
           <button class="btn" data-act="flip"><span class="t">Flip</span></button>
           <button class="btn" data-act="resign"><span class="t">Resign</span></button>
         </div>
-        <div class="status" aria-live="polite"><div class="main t"></div><div class="sub"></div></div>
+        <div class="status" aria-live="polite"><div class="main t"></div><p class="lede"></p><div class="sub"></div></div>
         <div class="move-list">
           <div class="label" style="margin-bottom:.5rem">Moves</div>
           <div class="moves"></div>
         </div>
+        <p class="foot"></p>
       </div>
     </div>
   </div>`;
