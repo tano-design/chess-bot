@@ -46,7 +46,7 @@ const BOARD = {
            black: { pl: "#0e0e0e", pk: "#6b3a7a", ps: "#0e0e0e", pd: "#0e0e0e" } },   // dark purple for now
   light: { light: "#ececec", dark: "#D9D9D9",
            white: { pl: "#ffffff", pk: "#191919", ps: "#191919", pd: "#191919" },
-           black: { pl: "#191919", pk: "#4a4a4a", ps: "#191919", pd: "#ececec" } },  // dark grey fill so the #191919 outline still reads
+           black: { pl: "#191919", pk: "#191919", ps: "#191919", pd: "#ececec", pxfill: "#4a4a4a" } },  // pxfill: phone pixel pieces get a grey fill so the outline reads
 };
 
 // ── Bot settings ────────────────────────────────────────────────────────────
@@ -287,6 +287,15 @@ const css = `
   .board { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr); }
   .sq { position: relative; background: var(--sq-light); transition: none; }
   .sq.d { background: var(--sq-dark); }
+  /* you won: the light tiles glitch pink in a wave from one corner, like the buttons' hover glitch */
+  .board.celebrate .sq:not(.d)::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+    animation: win-tile .6s steps(1, end) var(--wd, 0ms) 3 both; }
+  @keyframes win-tile {
+    0% { background: transparent; } 10% { background: var(--pink); } 22% { background: transparent; }
+    34% { background: var(--pink-dark); } 46% { background: transparent; } 60% { background: var(--pink); }
+    75% { background: color-mix(in srgb, var(--pink) 45%, transparent); } 100% { background: transparent; }
+  }
+  @media (prefers-reduced-motion: reduce) { .board.celebrate .sq:not(.d)::after { animation: none; } }
   .sq.last::before, .sq.sel::before, .sq.check::before { content: ""; position: absolute; inset: 0; pointer-events: none; }
   .sq.last::before { background: color-mix(in srgb, var(--pink) 30%, transparent); }
   .sq.sel::before { background: color-mix(in srgb, var(--pink) 52%, transparent); }
@@ -298,7 +307,7 @@ const css = `
   .pc { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
   .pc svg { width: 100%; height: 100%; display: block; fill: var(--pk); }
   .pc.w { --pl: var(--w-pl); --pk: var(--w-pk); --ps: var(--w-ps); --pd: var(--w-pd); --fc: var(--w-pl); }
-  .pc.b { --pl: var(--b-pl); --pk: var(--b-pk); --ps: var(--b-ps); --pd: var(--b-pd); --fc: var(--b-pk); }
+  .pc.b { --pl: var(--b-pl); --pk: var(--b-pk); --ps: var(--b-ps); --pd: var(--b-pd); --fc: var(--b-pxfill, var(--b-pk)); }
   .pc.lift { opacity: .3; }
   .pc.slide { transition: transform .19s cubic-bezier(.3,.6,.3,1); }
   .ghost { position: absolute; z-index: 10; pointer-events: none; width: 12.5%; height: 12.5%; transform: translate(-50%, -50%) scale(1.12); }
@@ -327,6 +336,7 @@ const css = `
   .status .sub b { color: var(--fg); font-weight: inherit; }
   .win-cta { display: flex; gap: 8px; flex-wrap: wrap; margin-top: .6rem; }
   .win-cta .btn { text-decoration: none; }
+  .win-cta .btn.mail { background: ${PINK}; color: #ffffff; font-weight: 700; }
   .win-cta[hidden] { display: none; }
 
   .seg { display: flex; gap: 6px; max-width: 100%; }
@@ -516,6 +526,7 @@ function boot(base) {
     const s = wrap.style;
     s.setProperty("--sq-light", t.light); s.setProperty("--sq-dark", t.dark);
     for (const k of ["pl", "pk", "ps", "pd"]) { s.setProperty("--w-" + k, t.white[k]); s.setProperty("--b-" + k, t.black[k]); }
+    if (t.black.pxfill) s.setProperty("--b-pxfill", t.black.pxfill); else s.removeProperty("--b-pxfill");
   }
   applyTheme();
   try { matchMedia(`(max-width: ${PIXEL_PIECES_BELOW}px)`).addEventListener("change", () => render(false)); } catch (e) {}
@@ -652,8 +663,19 @@ function boot(base) {
       const pct = rec ? Math.max(1, Math.round((100 * rec.draws) / (rec.wins + rec.losses + rec.draws))) : 3;
       over = { text: why, sub: `Nobody wins. Only ${pct}% of tano's real games end in a draw.`, result: "draw" };
     }
-    if (over) { track("tanobot_end", { result: over.result, moves: chess.history().length }); save(); }
+    if (over) { track("tanobot_end", { result: over.result, moves: chess.history().length }); save(); if (over.result === "win") celebrate(); }
     return !!over;
+  }
+  let celebrateT = 0;
+  function celebrate() {
+    boardEl.querySelectorAll(".sq:not(.d)").forEach((el) => {
+      const sq = el.dataset.sq || "a1";
+      const f = sq.charCodeAt(0) - 97, rk = +sq[1] - 1;
+      const step = orient === "w" ? f + (7 - rk) : (7 - f) + rk;   // wave starts at the top-left corner on screen
+      el.style.setProperty("--wd", step * 45 + "ms");
+    });
+    boardEl.classList.remove("celebrate"); void boardEl.offsetWidth; boardEl.classList.add("celebrate");
+    clearTimeout(celebrateT); celebrateT = setTimeout(() => boardEl.classList.remove("celebrate"), 3000);
   }
   function afterMove(anim) {
     selected = null;
@@ -696,7 +718,7 @@ function boot(base) {
             await sleep(rand(700, 1300)); if (id !== gameId) return;
             over = { text: "Tano resigned", sub: `He resigns ${Math.round(((BOOK && BOOK.resignRate) || 0.7) * 100)}% of the games he loses. Real stat.`, result: "win" };
             track("tanobot_end", { result: "win_resign", moves: chess.history().length });
-            botBusy = false; boardWrap.classList.remove("busy"); save(); refreshStatus(); return;
+            botBusy = false; boardWrap.classList.remove("busy"); save(); refreshStatus(); celebrate(); return;
           }
         }
         const h = humanMove(chess, lines);
