@@ -1,4 +1,4 @@
-/*  TANOBOT: a chess bot that plays like tano.  Easter egg for tanodsgn.com
+/*  TANOMATE: a chess bot that plays like tano.  Easter egg for tanodsgn.com
  *
  *  Loaded by embed.js when a page has <div data-tano-chess></div>.
  *  Everything runs in the visitor's browser: chess.js for the rules, Stockfish (WASM) as the engine,
@@ -9,20 +9,20 @@
 import { Chess } from "./chess.js";
 
 // ── Design settings: edit these ─────────────────────────────────────────────
-const NAME = "TANOBOT";
+const NAME = "TANOMATE";
 const PINK = "#E68DF9";               // emphasis color (dot, highlights, move hints)
 const PINK_DARK = "#a24db5";          // dot flicker color on hover
 // The site's web font first, so every visitor (and your own Mac, even with Monument installed locally) gets the same metrics.
 const BRAND_FONT = '"Monument Grotesk Variable", "Monument Grotesk", "ABC Monument Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif';
 const MONO_FONT = BRAND_FONT;          // labels, status, ratings
-// The TANOBOT title uses exactly the TanoLLM title's font, size and dot nudge, so the two match everywhere.
+// The TANOMATE title uses exactly the TanoLLM title's font, size and dot nudge, so the two match everywhere.
 const TITLE_FONT = '"Monument Grotesk Mono", "ABC Monument Grotesk Mono", "Monument Grotesk Mono Variable", "Monument Grotesk", "Monument Grotesk Variable", "ABC Monument Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif';
 const NUM_FONT = '"ocr-a-std", "OCR A Std", "OCR-A", "OCR A", monospace'; // ratings + move list
 const FONT_CSS = "https://use.typekit.net/xnk0one.css"; // tano's Adobe Fonts kit (has OCR-A)
-const TITLE_SIZE = "1.1rem";          // TANOBOT title + buttons, same as the TanoLLM title
+const TITLE_SIZE = "1.1rem";          // TANOMATE title + buttons, same as the TanoLLM title
 const BODY_SIZE = "1.1rem";           // body text, matches the site
 const SMALL_SIZE = "0.85rem";
-const HEADER_SIZE = "1.6rem";         // header line under TANOBOT, same size as the TanoLLM greeting
+const HEADER_SIZE = "1.6rem";         // header line under TANOMATE, same size as the TanoLLM greeting
 const BOARD_MAX = "min(680px, calc(100vh - 3rem))"; // biggest the board gets on desktop (also never taller than the window)
 const PANEL_MAX = "380px";            // widest the text panel gets beside the board
 const TWO_COLUMN_AT = 760;            // container width (px) where the panel moves beside the board
@@ -34,7 +34,7 @@ const BTN_FG = "#ffffff";
 const BTN_SIZE = "1rem";              // button text size; button height follows it
 const BTN_PAD = ".7em 1em";           // space around the button text (top/bottom, left/right), scales with BTN_SIZE
 
-// Pink dot next to TANOBOT: moves it up (positive) or down (negative), same values as the TanoLLM title.
+// Pink dot next to TANOMATE: moves it up (positive) or down (negative), same values as the TanoLLM title.
 const TITLE_DOT_NUDGE = 2.5;          // same as TanoLLM
 const MOBILE_TITLE_DOT_NUDGE = 0.5;   // same as TanoLLM
 
@@ -150,11 +150,45 @@ function pickWeighted(items, weightOf) {
   for (const it of items) { r -= weightOf(it); if (r <= 0) return it; }
   return items[items.length - 1];
 }
-function bookMove(chess) {
+// moves tano only plays when trolling (rim knights, crab pawns, king walks): never in the opening
+function trollMove(mv, ply, inCheck) {
+  if (mv.piece === "n" && /^[ah]/.test(mv.to) && !mv.captured) return true;
+  if (mv.piece === "p" && /^[ah]/.test(mv.from) && !mv.captured && ply < 12) return true;
+  if (mv.piece === "k" && !/^O-O/.test(mv.san) && !inCheck) return true;
+  return false;
+}
+const uciOf = (mv) => mv.from + mv.to + (mv.promotion || "");
+const FREE_GAP_CP = 150;        // a capture this much better than any quiet move = free material
+const TAKE_FREE = { opening: 1, middlegame: 0.85, endgame: 0.85 };   // how often tano grabs it
+const OPENING_MAX_LOSS = 6;     // in the opening tano doesn't give away more than this much win chance (%)
+const BOOK_VETO_LOSS = 20;      // a remembered move that loses this much (hangs a piece) is skipped; gambits stay
+// obvious free material: the best move is a capture and it's far better than every non-capture
+function freeGrab(chess, lines) {
+  if (!lines.length) return null;
+  const moves = new Chess(chess.fen()).moves({ verbose: true });
+  const byUci = new Map(moves.map((m) => [uciOf(m), m]));
+  const best = byUci.get(lines[0].uci);
+  if (!best || !best.captured) return null;
+  const quiet = lines.find((l) => { const m = byUci.get(l.uci); return m && !m.captured; });
+  if (quiet && lines[0].cp - quiet.cp < FREE_GAP_CP) return null;
+  return Math.random() < (TAKE_FREE[phaseOf(chess)] || 0.85) ? best.san : null;
+}
+// how much win chance a move gives away, from the engine lines (null if the engine didn't list it)
+function lossOf(lines, uci) {
+  const l = lines.find((x) => x.uci === uci);
+  return l ? Math.max(0, winPct(lines[0].cp) - winPct(l.cp)) : null;
+}
+function bookMove(chess, lines) {
   if (!BOOK || chess.history().length >= BOOK_PLIES) return null;
   const entry = BOOK.book[fen4(chess.fen())];
   if (!entry) return null;
-  const legal = entry.filter(([san]) => { try { return new Chess(chess.fen()).move(san); } catch (e) { return false; } });
+  const ply = chess.history().length, inCheck = chess.inCheck();
+  const legal = entry.filter(([san]) => {
+    let mv; try { mv = new Chess(chess.fen()).move(san); } catch (e) { return false; }
+    if (!mv || trollMove(mv, ply, inCheck)) return false;
+    const loss = lines ? lossOf(lines, uciOf(mv)) : null;
+    return loss == null || loss < BOOK_VETO_LOSS;   // gambits lose a little and stay; hanging a piece doesn't
+  });
   if (!legal.length) return null;
   const [san, n] = pickWeighted(legal, (e) => e[1]);
   const total = legal.reduce((a, e) => a + e[1], 0);
@@ -173,6 +207,7 @@ function humanMove(chess, lines) {
     let mv;
     try { mv = new Chess(chess.fen()).move({ from: l.uci.slice(0, 2), to: l.uci.slice(2, 4), promotion: l.uci[4] || "q" }); } catch (e) { continue; }
     const loss = Math.max(0, best - winPct(l.cp));
+    if (phase === "opening" && (loss >= OPENING_MAX_LOSS || trollMove(mv, chess.history().length, chess.inCheck())) && l !== lines[0]) continue;
     let b = edges.findIndex((e) => loss < e); if (b < 0) b = edges.length;
     const w = tagsOf(mv).reduce((a, t) => a * (style[t] || 1), 1);
     cands.push({ san: mv.san, cp: l.cp, loss, bucket: b, w });
@@ -631,12 +666,14 @@ function boot(base) {
     const t0 = performance.now();
     let pick = null, src = null;
     try {
-      const b = bookMove(chess);
-      if (b) { pick = b.san; src = { type: "book", san: b.san, n: b.n, total: b.total }; }
+      if (!engine) engine = makeEngine();
+      const lines = await engine.analyse(chess.fen(), isMobile() ? DEPTH_MOBILE : DEPTH, MULTIPV);
+      if (id !== gameId) return;
+      const grab = freeGrab(chess, lines);
+      const b = grab ? null : bookMove(chess, lines);
+      if (grab) { pick = grab; src = { type: "engine", san: grab, loss: 0 }; }
+      else if (b) { pick = b.san; src = { type: "book", san: b.san, n: b.n, total: b.total }; }
       else {
-        if (!engine) engine = makeEngine();
-        const lines = await engine.analyse(chess.fen(), isMobile() ? DEPTH_MOBILE : DEPTH, MULTIPV);
-        if (id !== gameId) return;
         // tano resigns lost positions about as often as he really does
         if (!resignDecided && lines.length && lines[0].cp <= RESIGN_CP) {
           resignDecided = true;

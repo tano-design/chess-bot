@@ -1,4 +1,4 @@
-/*  TANOBOT loader. Paste ONE line into Cargo (Site Settings → CSS / HTML → HTML, at the very end):
+/*  TANOMATE loader. Paste ONE line into Cargo (Site Settings → CSS / HTML → HTML, at the very end):
  *    <script src="https://YOUR-VERCEL-ADDRESS/chess/embed.js" defer></script>
  *  Then on the hidden page, in code view:  <div data-tano-chess></div>
  *  This file is tiny. The game itself only downloads on the page that has that div.
