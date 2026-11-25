@@ -53,7 +53,11 @@ const BOARD = {
 const BOOK_PLIES = 20;                // play from tano's opening memory for the first 10 moves each
 const DEPTH = 9;                      // engine depth (desktop)
 const DEPTH_MOBILE = 8;               // engine depth (phones)
-const PIXEL_PIECES_BELOW = 768;       // on screens this narrow or less, use the pixel pieces (like the nav icons)
+const PIXEL_PIECES_BELOW = 768;
+// phones only: the Cargo page has no padding (so the board lines up with HOME on desktop),
+// so the game adds its own side padding on phones, plus room at the bottom for the menu key
+const MOBILE_SIDE_PAD = "1.5rem";
+const MOBILE_BOTTOM_PAD = "8rem";       // on screens this narrow or less, use the pixel pieces (like the nav icons)
 const MULTIPV = 30;                   // how many moves the engine scores, so the bot can pick "human" ones
 const THINK_MS = [550, 1500];         // how long tano "thinks" (min, max), in milliseconds
 const RESIGN_CP = -700;               // tano considers resigning when he is this far behind (centipawns)
@@ -194,6 +198,9 @@ const css = `
     --pink: ${PINK}; --pink-dark: ${PINK_DARK};
     font: ${BODY_SIZE}/1.35 ${BRAND_FONT}; color: var(--fg); -webkit-font-smoothing: antialiased;
     container-type: inline-size; width: 100%;
+  }
+  @media (max-width: ${PIXEL_PIECES_BELOW}px) {
+    .wrap { padding: 0 ${MOBILE_SIDE_PAD} ${MOBILE_BOTTOM_PAD}; }
   }
   .wrap.light {
     --bg: #D9D9D9; --fg: rgba(25,25,25,.9); --strong: #191919; --mute: rgba(25,25,25,.55); --line: rgba(25,25,25,.15);
