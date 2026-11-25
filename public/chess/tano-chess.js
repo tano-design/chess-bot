@@ -18,7 +18,8 @@ const NUM_FONT = '"ocr-a-std", "OCR A Std", "OCR-A", "OCR A", monospace'; // rat
 const FONT_CSS = "https://use.typekit.net/xnk0one.css"; // tano's Adobe Fonts kit (has OCR-A)
 const TITLE_SIZE = "1.1rem";          // TANOBOT title + buttons, same as the TanoLLM title
 const BODY_SIZE = "1.1rem";           // body text, matches the site
-const SMALL_SIZE = "0.85rem";         // labels, move list, stats
+const SMALL_SIZE = "0.85rem";
+const HEADER_SIZE = "1.6rem";         // "Trained on 598 of tano's games..." header, same as the TanoLLM greeting         // labels, move list, stats
 const BOARD_MAX = "min(680px, calc(100vh - 3rem))"; // biggest the board gets on desktop (also never taller than the window)
 const PANEL_MAX = "380px";            // widest the text panel gets beside the board
 const TWO_COLUMN_AT = 760;            // container width (px) where the panel moves beside the board
@@ -27,22 +28,23 @@ const RADIUS = "0";                   // corners on buttons and board
 // Filled buttons (NEW GAME, selected PLAY AS), like the site's buttons: light grey on dark, bold.
 const FILL = { dark: { bg: "#D9D9D9", fg: "#191919" }, light: { bg: "#191919", fg: "#D9D9D9" } };
 const BTN_HEIGHT = 38;                // button height in pixels
-const BTN_TEXT_NUDGE = 1;             // moves button text up (positive) or down (negative), in pixels
-const MOBILE_BTN_TEXT_NUDGE = 0.5;    // same, on phones
+const BTN_TEXT_NUDGE = 0;             // moves button text up (positive) or down (negative), in pixels
+const MOBILE_BTN_TEXT_NUDGE = 0;      // same, on phones
 
 // Pink dot next to TANOBOT: moves it up (positive) or down (negative), same values as the TanoLLM title.
-const TITLE_DOT_NUDGE = 2.5;
-const MOBILE_TITLE_DOT_NUDGE = 0.5;
+// (Text is trimmed to its capital letters, so 0 should already be centered.)
+const TITLE_DOT_NUDGE = 0;
+const MOBILE_TITLE_DOT_NUDGE = 0;
 
 // Board colors per theme. Pieces: --pl light body, --pk dark body, --ps outline, --pd black-piece details.
 const BOARD = {
   // dark squares are the site background, so the board melts into the page and flips with the toggle
   dark:  { light: "#2e2e2e", dark: "#191919",
            white: { pl: "#ececec", pk: "#191919", ps: "#191919", pd: "#191919" },
-           black: { pl: "#0e0e0e", pk: "#6e6e6e", ps: "#0e0e0e", pd: "#0e0e0e" } },
+           black: { pl: "#0e0e0e", pk: "#6b3a7a", ps: "#0e0e0e", pd: "#0e0e0e" } },   // dark purple for now
   light: { light: "#ececec", dark: "#D9D9D9",
            white: { pl: "#ffffff", pk: "#191919", ps: "#191919", pd: "#191919" },
-           black: { pl: "#191919", pk: "#191919", ps: "#191919", pd: "#ececec" } },
+           black: { pl: "#191919", pk: "#4a1f56", ps: "#191919", pd: "#ececec" } },  // dark purple for now
 };
 
 // ── Bot settings ────────────────────────────────────────────────────────────
@@ -201,16 +203,16 @@ const css = `
   .layout { display: flex; flex-direction: column; gap: 1.1rem; }
   .panel { display: contents; }
   .title { order: 1; } .lede { order: 2; } .stats { order: 3; }
-  .board-wrap { order: 4; margin: .4rem 0 .2rem; }
+  .board-col { order: 4; margin: .4rem 0 .2rem; display: flex; flex-direction: column; gap: .75rem; min-width: 0; }
   .wrap { --btn-nudge: ${MOBILE_BTN_TEXT_NUDGE}px; --dot-nudge: ${MOBILE_TITLE_DOT_NUDGE}px; }
-  .status { order: 5; } .row-btns { order: 6; } .side-pick { order: 7; } .move-list { order: 8; } .foot { order: 9; }
+  .status { order: 5; } .row-btns { order: 6; } .side-pick { order: 7; } .move-list { order: 8; }
   .row-btns { display: flex; }
   .row-btns .btn { flex: 1 1 auto; text-align: center; white-space: nowrap; padding-left: 8px; padding-right: 8px; }
   .seg { width: 100%; } .seg button { flex: 1; text-align: center; }
   @container (min-width: ${TWO_COLUMN_AT}px) {
     .layout { display: grid; gap: 1.5rem; grid-template-columns: minmax(0, ${BOARD_MAX}) minmax(0, ${PANEL_MAX}); align-items: start; }
     .panel { display: flex; flex-direction: column; gap: 1.1rem; }
-    .board-wrap { margin: 0; order: 0; }
+    .board-col { margin: 0; order: 0; }
     .row-btns { display: flex; flex-wrap: wrap; }
     .row-btns .btn { flex: none; padding-left: 14px; padding-right: 14px; }
     .wrap { --btn-nudge: ${BTN_TEXT_NUDGE}px; --dot-nudge: ${TITLE_DOT_NUDGE}px; }
@@ -252,10 +254,10 @@ const css = `
   .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--pink); flex: none; transform: translateY(calc(var(--dot-nudge) * -1)); }
   .dot.think { animation: blink .9s steps(1, end) infinite; }
   @keyframes blink { 0%,100% { background: var(--pink); } 50% { background: var(--pink-dark); } }
-  .lede { color: var(--fg); min-height: 2.7em; }
+  .lede { color: var(--strong); font-size: ${HEADER_SIZE}; line-height: 1.15; min-height: 2.3em; }
   .stats { display: grid; grid-template-columns: repeat(3, auto); justify-content: start; gap: .2rem 1.4rem; }
   .stat .k, .label { font: 500 ${SMALL_SIZE}/1.2 ${MONO_FONT}; letter-spacing: .04em; text-transform: uppercase; color: var(--mute); }
-  .stat .v { font: 400 ${BODY_SIZE}/1.3 ${NUM_FONT}; color: var(--strong); }
+  .stat .v { font: 500 ${BODY_SIZE}/1.3 ${MONO_FONT}; color: var(--strong); font-variant-numeric: tabular-nums; }
   .status { border-top: 1px solid var(--line); padding-top: 1rem; display: flex; flex-direction: column; gap: .35rem; }
   .status .main { font: 700 ${TITLE_SIZE}/1.2 ${MONO_FONT}; letter-spacing: .04em; text-transform: uppercase; color: var(--strong); min-height: 1.2em; }
   .status .sub { color: var(--mute); min-height: 1.35em; }
@@ -301,6 +303,11 @@ const css = `
   .light .moves .cur { color: #a24db5; }
   .moves:empty::before { content: "No moves yet."; grid-column: 1 / -1; color: var(--mute); font-family: ${BRAND_FONT}; font-size: ${BODY_SIZE}; }
   .foot { color: var(--mute); font-size: ${SMALL_SIZE}; line-height: 1.4; }
+  @container (min-width: ${TWO_COLUMN_AT}px) { .foot { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } }
+  /* Monument Grotesk has tall built-in space above the capitals, which pushes text down in buttons and
+     next to the dot. Trim every label to its cap height so centering is optical, not font-metric. */
+  .t { display: block; text-box: trim-both cap alphabetic; }
+  @supports not (text-box: trim-both cap alphabetic) { .t { position: relative; top: var(--trim-fallback, -2px); } }
   .err { color: var(--pink); }
 `;
 
@@ -358,32 +365,34 @@ function buildUI() {
   root.innerHTML = `<style>${css}</style>
   <div class="wrap">
     <div class="layout">
+      <div class="board-col">
       <div class="board-wrap" aria-label="Chess board">
         <div class="board"></div>
         <div class="promo" hidden><div class="row"></div></div>
       </div>
+      <p class="foot"></p>
+      </div>
       <div class="panel">
-        <div class="title"><span class="dot"></span><span class="name">${NAME}</span></div>
+        <div class="title"><span class="dot"></span><span class="name t">${NAME}</span></div>
         <p class="lede"></p>
         <div class="stats"></div>
         <div class="side-pick">
           <div class="label" style="margin-bottom:.5rem">Play as</div>
           <div class="seg" role="group" aria-label="Play as">
-            <button data-side="w" aria-pressed="true">White</button><button data-side="b" aria-pressed="false">Black</button><button data-side="r" aria-pressed="false">Random</button>
+            <button data-side="w" aria-pressed="true"><span class="t">White</span></button><button data-side="b" aria-pressed="false"><span class="t">Black</span></button><button data-side="r" aria-pressed="false"><span class="t">Random</span></button>
           </div>
         </div>
         <div class="row-btns">
-          <button class="btn primary" data-act="new">New game</button>
-          <button class="btn" data-act="undo">Undo</button>
-          <button class="btn" data-act="flip">Flip</button>
-          <button class="btn" data-act="resign">Resign</button>
+          <button class="btn primary" data-act="new"><span class="t">New game</span></button>
+          <button class="btn" data-act="undo"><span class="t">Undo</span></button>
+          <button class="btn" data-act="flip"><span class="t">Flip</span></button>
+          <button class="btn" data-act="resign"><span class="t">Resign</span></button>
         </div>
-        <div class="status" aria-live="polite"><div class="main"></div><div class="sub"></div></div>
+        <div class="status" aria-live="polite"><div class="main t"></div><div class="sub"></div></div>
         <div class="move-list">
           <div class="label" style="margin-bottom:.5rem">Moves</div>
           <div class="moves"></div>
         </div>
-        <p class="foot"></p>
       </div>
     </div>
   </div>`;
@@ -723,16 +732,16 @@ function boot(base) {
   function intro() {
     const lede = $(".lede"), stats = $(".stats"), foot = $(".foot");
     if (!BOOK) {
-      scramble(lede, "Trained on tano's chess.com games. Plays his openings, his habits, and his mistakes.");
+      scramble(lede, "Trained on tano's chess.com games. Plays Chris's openings, habits, and mistakes.");
       return;
     }
-    scramble(lede, `Trained on ${BOOK.games} of tano's chess.com games. Plays his openings, his habits, and his mistakes.`);
+    scramble(lede, `Trained on ${BOOK.games} of tano's chess.com games. Plays Chris's openings, habits, and mistakes.`);
     const r = BOOK.ratings || {};
     const cells = [["Rapid", r.rapid], ["Daily", r.daily], ["Blitz", r.blitz]].filter((c) => c[1]);
     stats.innerHTML = cells.map(([k]) => `<div class="stat"><div class="k">${k}</div><div class="v" data-v></div></div>`).join("");
     stats.querySelectorAll("[data-v]").forEach((el, i) => scramble(el, String(cells[i][1]), 700));
     const rec = BOOK.record || {};
-    foot.textContent = `Real record: ${rec.wins}W ${rec.losses}L ${rec.draws}D. Matches Stockfish's top move ${Math.round((BOOK.engineMatch || 0) * 100)}% of the time, like tano. Updated ${BOOK.built}.`;
+    foot.textContent = `Real record ${rec.wins}W ${rec.losses}L ${rec.draws}D · Matches Stockfish's top move ${Math.round((BOOK.engineMatch || 0) * 100)}% of the time · Updated ${BOOK.built}`;
   }
 
   // ── start ──
