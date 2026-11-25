@@ -54,6 +54,10 @@ const BOOK_PLIES = 20;                // play from tano's opening memory for the
 const DEPTH = 9;                      // engine depth (desktop)
 const DEPTH_MOBILE = 8;               // engine depth (phones)
 const PIXEL_PIECES_BELOW = 768;
+// shown when a visitor beats the bot: a button that emails Chris
+const WIN_EMAIL = "cdegaetadesign@gmail.com";
+const WIN_LINE = "You beat Chris. He'd want to hear about it.";
+const WIN_INSTAGRAM = "https://www.instagram.com/tano_dsgn/";
 const SECTION_GAP = "1.5rem";   // space between every block (title, intro, ratings, status, buttons, play as, moves)
 // phones only: the Cargo page has no padding (so the board lines up with HOME on desktop),
 // so the game adds its own side padding on phones, plus room at the bottom for the menu key
@@ -321,6 +325,9 @@ const css = `
   .status .main { font: 700 ${TITLE_SIZE}/1.2 ${MONO_FONT}; letter-spacing: .04em; text-transform: uppercase; color: var(--strong); min-height: 1.2em; }
   .status .sub { color: var(--mute); min-height: 1.35em; }
   .status .sub b { color: var(--fg); font-weight: inherit; }
+  .win-cta { display: flex; gap: 8px; flex-wrap: wrap; margin-top: .6rem; }
+  .win-cta .btn { text-decoration: none; }
+  .win-cta[hidden] { display: none; }
 
   .seg { display: flex; gap: 6px; max-width: 100%; }
   .seg button { box-shadow: inset 0 0 0 1px ${BTN_BG}; color: var(--fg); }
@@ -466,7 +473,7 @@ function buildUI() {
           <button class="btn" data-act="flip"><span class="t">Flip</span></button>
           <button class="btn" data-act="resign"><span class="t">Resign</span></button>
         </div>
-        <div class="status" aria-live="polite"><div class="main t"></div><div class="sub"></div></div>
+        <div class="status" aria-live="polite"><div class="main t"></div><div class="sub"></div><div class="win-cta" hidden><a class="btn mail" target="_blank" rel="noopener"><span class="t">Email Chris \u2197</span></a><a class="btn ig" href="${WIN_INSTAGRAM}" target="_blank" rel="noopener"><span class="t">Instagram \u2197</span></a></div></div>
         <div class="move-list">
           <div class="label" style="margin-bottom:.5rem">Moves</div>
           <div class="moves"></div>
@@ -618,8 +625,16 @@ function boot(base) {
     root.querySelector('[data-act="resign"]').disabled = !!over || h < 2;
     root.querySelectorAll(".seg button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.side === sidePref)));
   }
+  const winCta = $(".win-cta");
+  winCta.addEventListener("click", (e) => { const a = e.target.closest("a"); if (a) track("tanomate_win_contact", { via: a.classList.contains("ig") ? "instagram" : "email", moves: chess.history().length }); });
   function refreshStatus() {
-    if (over) { status(over.text, over.sub); dot.classList.remove("think"); }
+    const won = !!over && over.result === "win";
+    winCta.hidden = !won;
+    if (won) {
+      const n = Math.ceil(chess.history().length / 2);
+      winCta.querySelector(".mail").href = `mailto:${WIN_EMAIL}?subject=${encodeURIComponent("I beat TANOMATE")}&body=${encodeURIComponent(`Hey Chris, I just beat your chess bot in ${n} moves (${over.text.toLowerCase()}).`)}`;
+    }
+    if (over) { status(over.text, won ? WIN_LINE : over.sub); dot.classList.remove("think"); }
     else if (chess.turn() === me) status(chess.inCheck() ? "Check. Your move" : "Your move", sourceText(lastSource));
     updateButtons();
   }
