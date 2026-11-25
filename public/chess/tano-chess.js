@@ -58,6 +58,7 @@ const PIXEL_PIECES_BELOW = 768;
 const WIN_EMAIL = "cdegaetadesign@gmail.com";
 const WIN_LINE = "You beat Chris. He'd want to hear about it.";
 const WIN_GLITCH_MS = 140;     // one on/off flash of the winning piece + dot (even rhythm, no easing)
+const WIN_COUNT_LABEL = "Visitors who've beaten Chris: ";   // shared counter on the win screen (api/wins.js)
 const WIN_GLITCH_TIMES = 6;    // how many flashes (6 x 140ms = under a second)
 const SECTION_GAP = "1.5rem";   // space between every block (title, intro, ratings, status, buttons, play as, moves)
 // phones only: the Cargo page has no padding (so the board lines up with HOME on desktop),
@@ -335,7 +336,8 @@ const css = `
   .win-cta { display: flex; gap: 8px; flex-wrap: wrap; margin-top: .6rem; }
   .win-cta .btn { text-decoration: none; }
   .win-cta .btn.mail { background: ${PINK}; color: #ffffff; font-weight: 700; }
-  .win-cta[hidden] { display: none; }
+  .win-cta[hidden], .win-count[hidden] { display: none; }
+  .win-count { font-variant-numeric: tabular-nums; }
 
   .seg { display: flex; gap: 6px; max-width: 100%; }
   .seg button { box-shadow: inset 0 0 0 1px ${BTN_BG}; color: var(--fg); }
@@ -486,7 +488,7 @@ function buildUI() {
           <div class="label" style="margin-bottom:.5rem">Moves</div>
           <div class="moves"></div>
         </div>
-        <p class="foot"></p>
+        <div class="foot"><div class="win-count" hidden></div><div class="record"></div></div>
       </div>
     </div>
   </div>`;
@@ -646,6 +648,7 @@ function boot(base) {
   function refreshStatus() {
     const won = !!over && over.result === "win";
     winCta.hidden = !won;
+
     if (won) {
       const n = Math.ceil(chess.history().length / 2);
       winCta.querySelector(".mail").href = `mailto:${WIN_EMAIL}?subject=${encodeURIComponent("I beat TANOMATE")}&body=${encodeURIComponent(`Hey Chris, I just beat your chess bot in ${n} moves (${over.text.toLowerCase()}).`)}`;
@@ -672,7 +675,32 @@ function boot(base) {
     return !!over;
   }
   let celebrateT = 0;
+  // shared win counter: each browser adds itself once; the server also caps one count per visitor every 6 hours
+  const winCount = $(".win-count");
+  let countShown = null, countReq = 0;
+  function showCount(n, animate) {
+    if (typeof n !== "number" || !isFinite(n) || n < 1) return;
+    winCount.hidden = false;
+    const text = WIN_COUNT_LABEL + n;
+    if (animate && countShown !== n) scramble(winCount, text, 700); else winCount.textContent = text;
+    countShown = n;
+  }
+  function loadCount(add) {
+    let already = false;
+    try { already = localStorage.getItem("tanomate-win-counted") === "1"; } catch (e) {}
+    const post = add && !already;
+    const id = ++countReq;   // the newest request wins (a win's POST beats an earlier GET)
+    fetch(BASE + "/api/wins", { method: post ? "POST" : "GET" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d || id !== countReq) return;
+        if (post) { try { localStorage.setItem("tanomate-win-counted", "1"); } catch (e) {} }
+        showCount(d.count, post);
+      })
+      .catch(() => {});
+  }
   function celebrate() {
+    countReq++; loadCount(true);
     const last = chess.history({ verbose: true }).filter((m) => m.color === me).pop();
     const sqEl = last && boardEl.querySelector(`.sq[data-sq="${last.to}"]`);
     const els = [dot, sqEl].filter(Boolean);
@@ -862,13 +890,14 @@ function boot(base) {
     if (!same) stats.innerHTML = cells.map(([k]) => `<div class="stat"><div class="k">${k}</div><div class="v" data-v></div></div>`).join("");
     stats.querySelectorAll("[data-v]").forEach((el, i) => scramble(el, String(cells[i][1]), 700));
     const rec = BOOK.record || {};
-    foot.textContent = `Real record ${rec.wins}W ${rec.losses}L ${rec.draws}D · Updated ${BOOK.built}`;
+    foot.querySelector(".record").textContent = `Real record ${rec.wins}W ${rec.losses}L ${rec.draws}D · Updated ${BOOK.built}`;
   }
 
   // ── start ──
   const resumed = restore();
   render(false);
   updateButtons();
+  loadCount(false);   // "Visitors who've beaten Chris" line above the record (hidden until the first win)
   fetch(BASE + "/chess/tano-book.json").then((r) => r.json()).then((b) => { BOOK = b; intro(); })
     .catch(() => { intro(); })
     .finally(() => {
