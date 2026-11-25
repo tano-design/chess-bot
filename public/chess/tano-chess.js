@@ -46,7 +46,7 @@ const BOARD = {
            black: { pl: "#0e0e0e", pk: "#6b3a7a", ps: "#0e0e0e", pd: "#0e0e0e" } },   // dark purple for now
   light: { light: "#ececec", dark: "#D9D9D9",
            white: { pl: "#ffffff", pk: "#191919", ps: "#191919", pd: "#191919" },
-           black: { pl: "#191919", pk: "#191919", ps: "#191919", pd: "#ececec" } },  // black in light mode
+           black: { pl: "#191919", pk: "#4a4a4a", ps: "#191919", pd: "#ececec" } },  // dark grey fill so the #191919 outline still reads
 };
 
 // ── Bot settings ────────────────────────────────────────────────────────────
