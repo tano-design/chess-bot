@@ -6,12 +6,14 @@
 (function () {
   if (window.__tanoChessLoader) return; // Cargo can re-run scripts between pages
   window.__tanoChessLoader = true;
-  var base = new URL(document.currentScript.src).origin;
+  var src = new URL(document.currentScript.src);
+  var base = src.origin;
+  var version = src.search; // e.g. embed.js?v=3 -> loads tano-chess.js?v=3, so a new number forces fresh files
   var loading = false;
   function check() {
     if (loading || !document.querySelector("[data-tano-chess]")) return;
     loading = true;
-    import(base + "/chess/tano-chess.js").then(function (m) { m.mount(base); })
+    import(base + "/chess/tano-chess.js" + version).then(function (m) { m.mount(base); })
       .catch(function (e) { loading = false; console.warn("[tanobot] could not load", e); });
   }
   check();
