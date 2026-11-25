@@ -57,7 +57,8 @@ const PIXEL_PIECES_BELOW = 768;
 // shown when a visitor beats the bot: a button that emails Chris
 const WIN_EMAIL = "cdegaetadesign@gmail.com";
 const WIN_LINE = "You beat Chris. He'd want to hear about it.";
-const WIN_INSTAGRAM = "https://www.instagram.com/tano_dsgn/";
+const WIN_GLITCH_MS = 600;     // one flicker of the winning piece + dot
+const WIN_GLITCH_TIMES = 4;    // how many flickers
 const SECTION_GAP = "1.5rem";   // space between every block (title, intro, ratings, status, buttons, play as, moves)
 // phones only: the Cargo page has no padding (so the board lines up with HOME on desktop),
 // so the game adds its own side padding on phones, plus room at the bottom for the menu key
@@ -287,15 +288,16 @@ const css = `
   .board { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr); }
   .sq { position: relative; background: var(--sq-light); transition: none; }
   .sq.d { background: var(--sq-dark); }
-  /* you won: the light tiles glitch pink in a wave from one corner, like the buttons' hover glitch */
-  .board.celebrate .sq:not(.d)::after { content: ""; position: absolute; inset: 0; pointer-events: none;
-    animation: win-tile .6s steps(1, end) var(--wd, 0ms) 3 both; }
-  @keyframes win-tile {
-    0% { background: transparent; } 10% { background: var(--pink); } 22% { background: transparent; }
-    34% { background: var(--pink-dark); } 46% { background: transparent; } 60% { background: var(--pink); }
-    75% { background: color-mix(in srgb, var(--pink) 45%, transparent); } 100% { background: transparent; }
+  /* you won: the winning piece's square and the title dot glitch pink together, same stepped flicker as the buttons */
+  .sq.win-glitch::after { content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+    animation: win-glitch ${WIN_GLITCH_MS}ms steps(1, end) ${WIN_GLITCH_TIMES}; }
+  .dot.win-glitch { animation: win-glitch ${WIN_GLITCH_MS}ms steps(1, end) ${WIN_GLITCH_TIMES}; }
+  @keyframes win-glitch {
+    0% { background: var(--pink); } 12% { background: transparent; } 24% { background: var(--pink-dark); }
+    36% { background: var(--pink); } 48% { background: transparent; } 62% { background: var(--pink); }
+    76% { background: color-mix(in srgb, var(--pink) 45%, transparent); } 88% { background: var(--pink); } 100% { background: var(--pink); }
   }
-  @media (prefers-reduced-motion: reduce) { .board.celebrate .sq:not(.d)::after { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .sq.win-glitch::after { animation: none; background: color-mix(in srgb, var(--pink) 45%, transparent); } .dot.win-glitch { animation: none; } }
   .sq.last::before, .sq.sel::before, .sq.check::before { content: ""; position: absolute; inset: 0; pointer-events: none; }
   .sq.last::before { background: color-mix(in srgb, var(--pink) 30%, transparent); }
   .sq.sel::before { background: color-mix(in srgb, var(--pink) 52%, transparent); }
@@ -483,7 +485,7 @@ function buildUI() {
           <button class="btn" data-act="flip"><span class="t">Flip</span></button>
           <button class="btn" data-act="resign"><span class="t">Resign</span></button>
         </div>
-        <div class="status" aria-live="polite"><div class="main t"></div><div class="sub"></div><div class="win-cta" hidden><a class="btn mail" target="_blank" rel="noopener"><span class="t">Email Chris \u2197</span></a><a class="btn ig" href="${WIN_INSTAGRAM}" target="_blank" rel="noopener"><span class="t">Instagram \u2197</span></a></div></div>
+        <div class="status" aria-live="polite"><div class="main t"></div><div class="sub"></div><div class="win-cta" hidden><a class="btn mail" target="_blank" rel="noopener"><span class="t">Email Chris \u2197</span></a></div></div>
         <div class="move-list">
           <div class="label" style="margin-bottom:.5rem">Moves</div>
           <div class="moves"></div>
@@ -644,7 +646,7 @@ function boot(base) {
     root.querySelectorAll(".seg button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.side === sidePref)));
   }
   const winCta = $(".win-cta");
-  winCta.addEventListener("click", (e) => { const a = e.target.closest("a"); if (a) track("tanomate_win_contact", { via: a.classList.contains("ig") ? "instagram" : "email", moves: chess.history().length }); });
+  winCta.addEventListener("click", (e) => { const a = e.target.closest("a"); if (a) track("tanomate_win_contact", { via: "email", moves: chess.history().length }); });
   function refreshStatus() {
     const won = !!over && over.result === "win";
     winCta.hidden = !won;
@@ -675,14 +677,12 @@ function boot(base) {
   }
   let celebrateT = 0;
   function celebrate() {
-    boardEl.querySelectorAll(".sq:not(.d)").forEach((el) => {
-      const sq = el.dataset.sq || "a1";
-      const f = sq.charCodeAt(0) - 97, rk = +sq[1] - 1;
-      const step = orient === "w" ? f + (7 - rk) : (7 - f) + rk;   // wave starts at the top-left corner on screen
-      el.style.setProperty("--wd", step * 45 + "ms");
-    });
-    boardEl.classList.remove("celebrate"); void boardEl.offsetWidth; boardEl.classList.add("celebrate");
-    clearTimeout(celebrateT); celebrateT = setTimeout(() => boardEl.classList.remove("celebrate"), 3000);
+    const last = chess.history({ verbose: true }).filter((m) => m.color === me).pop();
+    const sqEl = last && boardEl.querySelector(`.sq[data-sq="${last.to}"]`);
+    const els = [dot, sqEl].filter(Boolean);
+    els.forEach((el) => { el.classList.remove("win-glitch"); void el.offsetWidth; el.classList.add("win-glitch"); });
+    clearTimeout(celebrateT);
+    celebrateT = setTimeout(() => els.forEach((el) => el.classList.remove("win-glitch")), WIN_GLITCH_MS * WIN_GLITCH_TIMES + 100);
   }
   function afterMove(anim) {
     selected = null;
