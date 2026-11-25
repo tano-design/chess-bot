@@ -57,8 +57,8 @@ const PIXEL_PIECES_BELOW = 768;
 // shown when a visitor beats the bot: a button that emails Chris
 const WIN_EMAIL = "cdegaetadesign@gmail.com";
 const WIN_LINE = "You beat Chris. He'd want to hear about it.";
-const WIN_GLITCH_MS = 600;     // one flicker of the winning piece + dot
-const WIN_GLITCH_TIMES = 4;    // how many flickers
+const WIN_GLITCH_MS = 140;     // one on/off flash of the winning piece + dot (even rhythm, no easing)
+const WIN_GLITCH_TIMES = 6;    // how many flashes (6 x 140ms = under a second)
 const SECTION_GAP = "1.5rem";   // space between every block (title, intro, ratings, status, buttons, play as, moves)
 // phones only: the Cargo page has no padding (so the board lines up with HOME on desktop),
 // so the game adds its own side padding on phones, plus room at the bottom for the menu key
@@ -292,19 +292,15 @@ const css = `
   .sq.win-glitch::after { content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 1;
     animation: win-glitch ${WIN_GLITCH_MS}ms steps(1, end) ${WIN_GLITCH_TIMES}; }
   .dot.win-glitch { animation: win-glitch ${WIN_GLITCH_MS}ms steps(1, end) ${WIN_GLITCH_TIMES}; }
-  @keyframes win-glitch {
-    0% { background: var(--pink); } 12% { background: transparent; } 24% { background: var(--pink-dark); }
-    36% { background: var(--pink); } 48% { background: transparent; } 62% { background: var(--pink); }
-    76% { background: color-mix(in srgb, var(--pink) 45%, transparent); } 88% { background: var(--pink); } 100% { background: var(--pink); }
-  }
+  @keyframes win-glitch { 0%, 49.99% { background: var(--pink); } 50%, 100% { background: transparent; } }
   @media (prefers-reduced-motion: reduce) { .sq.win-glitch::after { animation: none; background: color-mix(in srgb, var(--pink) 45%, transparent); } .dot.win-glitch { animation: none; } }
   .sq.last::before, .sq.sel::before, .sq.check::before { content: ""; position: absolute; inset: 0; pointer-events: none; }
   .sq.last::before { background: color-mix(in srgb, var(--pink) 30%, transparent); }
   .sq.sel::before { background: color-mix(in srgb, var(--pink) 52%, transparent); }
   .sq.check::before { background: radial-gradient(circle, var(--pink) 0%, color-mix(in srgb, var(--pink) 45%, transparent) 45%, transparent 72%); }
-  .sq.hint::after { content: ""; position: absolute; left: 50%; top: 50%; width: 28%; height: 28%; transform: translate(-50%, -50%);
-                    border-radius: 50%; background: var(--pink); opacity: .85; pointer-events: none; }
-  .sq.hint.cap::after { width: 86%; height: 86%; background: transparent; border: 3px solid var(--pink); opacity: .9; }
+  .sq.hint::after { content: ""; position: absolute; left: 50%; top: 50%; width: 16%; height: 16%; transform: translate(-50%, -50%);
+                    border-radius: 50%; background: var(--pink); opacity: .75; pointer-events: none; }
+  .sq.hint.cap::after { width: 80%; height: 80%; background: transparent; border: 2px solid var(--pink); opacity: .75; }
   .sq.over { box-shadow: inset 0 0 0 3px var(--pink); }
   .pc { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
   .pc svg { width: 100%; height: 100%; display: block; fill: var(--pk); }
