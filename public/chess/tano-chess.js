@@ -154,8 +154,7 @@ function pickWeighted(items, weightOf) {
 function trollMove(mv, ply, inCheck) {
   if (mv.piece === "n" && /^[ah]/.test(mv.to) && !mv.captured) return true;
   if (mv.piece === "p" && /^[ah]/.test(mv.from) && !mv.captured && ply < 12) return true;
-  if (mv.piece === "k" && !/^O-O/.test(mv.san) && !inCheck) return true;
-  return false;
+  return false;   // king walks (Ke2) are allowed: tano trolls with them, then plays it out properly
 }
 const uciOf = (mv) => mv.from + mv.to + (mv.promotion || "");
 const FREE_GAP_CP = 150;        // a capture this much better than any quiet move = free material
@@ -234,6 +233,7 @@ const css = `
     --pink: ${PINK}; --pink-dark: ${PINK_DARK};
     font: ${BODY_SIZE}/1.35 ${BRAND_FONT}; color: var(--fg); -webkit-font-smoothing: antialiased;
     container-type: inline-size; width: 100%;
+    touch-action: manipulation;   /* no double-tap zoom anywhere on the game (pinch zoom still works) */
   }
   @media (max-width: ${PIXEL_PIECES_BELOW}px) {
     .wrap { padding: 0 ${MOBILE_SIDE_PAD} ${MOBILE_BOTTOM_PAD}; }
