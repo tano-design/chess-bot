@@ -211,7 +211,7 @@ const css = `
   /* phones / narrow columns: title, board, then status right under it */
   .layout { display: flex; flex-direction: column; gap: 1.1rem; }
   .panel { display: contents; }
-  .title { order: 1; } .stats { order: 3; }
+  .title { order: 1; } .lede { order: 2; } .stats { order: 3; }
   .board-col { order: 4; margin: .4rem 0 .2rem; display: flex; flex-direction: column; gap: .75rem; min-width: 0; }
   .wrap { --dot-nudge: ${MOBILE_TITLE_DOT_NUDGE}px; }
   .foot { order: 5; margin-top: -.35rem; }
@@ -236,7 +236,8 @@ const css = `
      the move list scrolls, so the record line always lands on the board's bottom edge */
   @container (min-width: 1000px) {
     .panel { height: 0; min-height: 100%; }
-    .move-list { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+    .panel > * { flex-shrink: 0; }
+    .panel > .move-list { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
     .move-list .moves { flex: 1 1 auto; min-height: 3em; max-height: none; align-content: start; }
   }
 
@@ -276,11 +277,11 @@ const css = `
   .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--pink); flex: none; transform: translateY(calc(var(--dot-nudge) * -1)); }
   .dot.think { animation: blink .9s steps(1, end) infinite; }
   @keyframes blink { 0%,100% { background: var(--pink); } 50% { background: var(--pink-dark); } }
-  .lede { color: var(--strong); font: 700 ${BODY_SIZE}/1.3 ${BRAND_FONT}; margin: .2rem 0 0; }
+  .lede { color: var(--strong); font: 400 ${HEADER_SIZE}/1.15 ${BRAND_FONT}; min-height: 2.3em; }
   .stats { display: grid; grid-template-columns: repeat(3, auto); justify-content: start; gap: .2rem 1.4rem; }
   .stat .k, .label { font: 500 ${SMALL_SIZE}/1.2 ${MONO_FONT}; letter-spacing: .04em; text-transform: uppercase; color: var(--mute); }
   .stat .v { font: 500 ${BODY_SIZE}/1.3 ${MONO_FONT}; color: var(--strong); font-variant-numeric: tabular-nums; }
-  .status { border-top: 1px solid var(--line); padding-top: 1rem; display: flex; flex-direction: column; gap: .35rem; }
+  .status { border-top: 1px solid var(--line); padding-top: 1.75rem; display: flex; flex-direction: column; gap: .35rem; }
   .status .main { font: 700 ${TITLE_SIZE}/1.2 ${MONO_FONT}; letter-spacing: .04em; text-transform: uppercase; color: var(--strong); min-height: 1.2em; }
   .status .sub { color: var(--mute); min-height: 1.35em; }
   .status .sub b { color: var(--fg); font-weight: inherit; }
@@ -391,6 +392,7 @@ function buildUI() {
       </div>
       <div class="panel">
         <div class="title"><span class="dot"></span><span class="name">${NAME}</span></div>
+        <p class="lede"></p>
         <div class="stats"></div>
         <div class="side-pick">
           <div class="label" style="margin-bottom:.5rem">Play as</div>
@@ -404,7 +406,7 @@ function buildUI() {
           <button class="btn" data-act="flip"><span class="t">Flip</span></button>
           <button class="btn" data-act="resign"><span class="t">Resign</span></button>
         </div>
-        <div class="status" aria-live="polite"><div class="main t"></div><p class="lede"></p><div class="sub"></div></div>
+        <div class="status" aria-live="polite"><div class="main t"></div><div class="sub"></div></div>
         <div class="move-list">
           <div class="label" style="margin-bottom:.5rem">Moves</div>
           <div class="moves"></div>
@@ -748,10 +750,10 @@ function boot(base) {
   function intro() {
     const lede = $(".lede"), stats = $(".stats"), foot = $(".foot");
     if (!BOOK) {
-      scramble(lede, "Built from tano's chess.com games. Plays Chris's openings, habits, and mistakes.");
+      lede.textContent = "Built from tano's chess.com games. Plays Chris's openings, habits, and mistakes.";
       return;
     }
-    scramble(lede, `Built from ${BOOK.games} of tano's chess.com games. Plays Chris's openings, habits, and mistakes.`);
+    lede.textContent = (`Built from ${BOOK.games} of tano's chess.com games. Plays Chris's openings, habits, and mistakes.`);
     const r = BOOK.ratings || {};
     const cells = [["Rapid", r.rapid], ["Daily", r.daily], ["Blitz", r.blitz]].filter((c) => c[1]);
     stats.innerHTML = cells.map(([k]) => `<div class="stat"><div class="k">${k}</div><div class="v" data-v></div></div>`).join("");
