@@ -338,14 +338,6 @@ const css = `
   .win-cta .btn.mail { background: ${PINK}; color: #ffffff; font-weight: 700; }
   .win-cta[hidden], .win-count[hidden] { display: none; }
   .win-count { font-variant-numeric: tabular-nums; }
-  /* phones: record on top with the date flush right on the same line, visitor count underneath.
-     If the line is too narrow, the date wraps under the record. */
-  @media (max-width: ${PIXEL_PIECES_BELOW}px) {
-    .foot { display: flex; flex-direction: column; }
-    .foot .record { order: 1; display: flex; flex-wrap: wrap; justify-content: space-between; column-gap: .75em; }
-    .foot .record .sep { display: none; }
-    .foot .win-count { order: 2; }
-  }
 
   .seg { display: flex; gap: 6px; max-width: 100%; }
   .seg button { box-shadow: inset 0 0 0 1px ${BTN_BG}; color: var(--fg); }
@@ -888,7 +880,7 @@ function boot(base) {
     if (!same) stats.innerHTML = cells.map(([k]) => `<div class="stat"><div class="k">${k}</div><div class="v" data-v></div></div>`).join("");
     stats.querySelectorAll("[data-v]").forEach((el, i) => scramble(el, String(cells[i][1]), 700));
     const rec = BOOK.record || {};
-    foot.querySelector(".record").innerHTML = `<span class="rec">Real record ${rec.wins}W ${rec.losses}L ${rec.draws}D</span><span class="sep"> · </span><span class="upd">Updated ${BOOK.built}</span>`;
+    foot.querySelector(".record").textContent = `Real record ${rec.wins}W ${rec.losses}L ${rec.draws}D · Updated ${BOOK.built}`;
   }
 
   // ── start ──
