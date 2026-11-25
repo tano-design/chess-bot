@@ -837,7 +837,7 @@ function boot(base) {
     if (!same) stats.innerHTML = cells.map(([k]) => `<div class="stat"><div class="k">${k}</div><div class="v" data-v></div></div>`).join("");
     stats.querySelectorAll("[data-v]").forEach((el, i) => scramble(el, String(cells[i][1]), 700));
     const rec = BOOK.record || {};
-    foot.textContent = `Real record ${rec.wins}W ${rec.losses}L ${rec.draws}D · Matches Stockfish's top move ${Math.round((BOOK.engineMatch || 0) * 100)}% of the time · Updated ${BOOK.built}`;
+    foot.textContent = `Real record ${rec.wins}W ${rec.losses}L ${rec.draws}D · Updated ${BOOK.built}`;
   }
 
   // ── start ──
