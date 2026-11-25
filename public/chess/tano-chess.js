@@ -252,7 +252,7 @@ const css = `
   .promo button:hover { background: var(--field); }
 
   /* Panel */
-  .title { display: flex; align-items: center; gap: 9px; font-family: ${TITLE_FONT}; font-size: ${TITLE_SIZE}; font-weight: 700;
+  .title { display: flex; align-items: center; gap: 9px; font-family: ${BRAND_FONT}; font-size: ${TITLE_SIZE}; font-weight: 700;
            letter-spacing: .04em; text-transform: uppercase; color: var(--strong); }
   .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--pink); flex: none; transform: translateY(calc(var(--dot-nudge) * -1)); }
   .dot.think { animation: blink .9s steps(1, end) infinite; }
