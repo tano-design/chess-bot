@@ -60,7 +60,7 @@ const WIN_LINE = "You beat Chris. Go ahead, tell him. He hates that.";
 // ── trash talk ── one line is picked at random from a group when that moment happens. {piece} = the piece's name.
 const QUIPS = {
   hang:    ["Thanks for the free {piece}. \u{1F639}", "Chris doesn't miss those. He misses everything else.", "Free real estate.",
-            "Blud is trolling \u{1F480}", "Did you mean to leave your {piece} there? \u{1F480}"],
+            "Blud is trolling \u{1F480}", "Did you mean to leave your {piece} there? \u{1F480}", "Thanks buddy."],
   queen:   ["Your queen has left the chat. \u{1F940}", "Rest in peace, your queen. \u{1F940}", "That was your queen, by the way. \u{1F480}"],
   youTook: ["Okay, you earned that one. Chris is calling it a sacrifice.", "Nice take. He'll be thinking about that one."],
   blunder: ["That one's a blunder. Very on brand. \u{1FAE0}", "Chris would like that one back.",
@@ -69,8 +69,8 @@ const QUIPS = {
   castle:  ["King tucked away. Rare moment of responsibility."],
   gambit:  ["A pawn, on the house. It's a trap. Probably. \u{1F440}"],
   undo:    ["That's your one undo. Make it count.", "Undo spent. No more safety net.", "One take-back. Chris is keeping receipts."],
-  youBlundered: ["???"],
-  rookPawn: ["Bro what?", "Bro what? \u{1F62D}", "Rook pawn? Chris has questions.", "Bro is trolling \u{1F480}"],
+  youBlundered: ["???", "Thanks buddy."],
+  rookPawn: ["Bro what?", "Bro what? \u{1F62D}", "Rook pawn? Chris has questions.", "Bro is trolling \u{1F480}", "What the helly"],
   check:   ["It's only a matter of time..."],
   // real stats from tano's games. "quiet" lines show now and then when nothing else is happening, each once per game
   quiet:   ["Half of Chris's moves match Stockfish's top pick. The other half are why you're still in this.",
@@ -846,9 +846,9 @@ function boot(base) {
       // material Tano actually comes out ahead over your move + his reply (a trade or recapture nets ~0, so no gloating)
       const netGain = (mv.captured ? VALUE[mv.captured] : 0) - (prev && prev.captured ? VALUE[prev.captured] : 0);
       // and the engine agrees your move was a real mistake (a good sacrifice doesn't get mocked).
-      // Winning your queen for a bishop or less always counts, even when Tano set it up a move earlier.
+      // Winning your queen for a rook or less always counts, even when Tano set it up a move earlier.
       const realGift = netGain >= 2 && (youLost == null || youLost >= BLUNDER_LOSS);
-      if (mv.captured === "q" && (realGift || netGain >= 5)) lastQuip = quip("queen");
+      if (mv.captured === "q" && (realGift || netGain >= 4)) lastQuip = quip("queen");
       else if (grab && mv.captured && realGift) lastQuip = quip("hang", mv.captured);
       else if (youBlundered) lastQuip = quip("youBlundered");
       else if (prev && prev.piece === "p" && "ah".includes(prev.from[0]) && !prev.captured && plyBefore <= 4 && !said.has("rookPawn")) { lastQuip = quip("rookPawn"); said.add("rookPawn"); }
