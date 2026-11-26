@@ -842,8 +842,10 @@ function boot(base) {
       const castled = /^O-O/.test(mv.san);
       const youCanTake = mv.piece === "p" && chess.moves({ verbose: true }).some((m) => m.to === mv.to && m.captured);
       src.hung = src.type === "engine" && src.loss >= 20 && hungPiece(chess);   // a real hung piece, not just a worse move
-      if (mv.captured === "q") lastQuip = quip("queen");
-      else if (grab && mv.captured) lastQuip = quip("hang", mv.captured);
+      // material Tano actually comes out ahead over your move + his reply (a trade or recapture nets ~0, so no gloating)
+      const netGain = (mv.captured ? VALUE[mv.captured] : 0) - (prev && prev.captured ? VALUE[prev.captured] : 0);
+      if (mv.captured === "q" && netGain >= 2) lastQuip = quip("queen");
+      else if (grab && mv.captured && netGain >= 2) lastQuip = quip("hang", mv.captured);
       else if (youBlundered) lastQuip = quip("youBlundered");
       else if (prev && prev.piece === "p" && "ah".includes(prev.from[0]) && !prev.captured && plyBefore <= 4 && !said.has("rookPawn")) { lastQuip = quip("rookPawn"); said.add("rookPawn"); }
       else if (me === "b" && mv.san === "c3" && before.join(" ") === "e4 e5 d4 exd4") lastQuip = quip("danish");
