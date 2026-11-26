@@ -838,7 +838,7 @@ function boot(base) {
       if (mv.captured === "q") lastQuip = quip("queen");
       else if (grab && mv.captured) lastQuip = quip("hang", mv.captured);
       else if (youBlundered) lastQuip = quip("youBlundered");
-      else if (prev && prev.piece === "p" && "ah".includes(prev.from[0]) && !prev.captured && plyBefore <= 4) lastQuip = quip("rookPawn");
+      else if (prev && prev.piece === "p" && "ah".includes(prev.from[0]) && !prev.captured && plyBefore <= 4 && !said.has("rookPawn")) { lastQuip = quip("rookPawn"); said.add("rookPawn"); }
       else if (me === "b" && mv.san === "c3" && before.join(" ") === "e4 e5 d4 exd4") lastQuip = quip("danish");
       else if (me === "w" && mv.san === "e5" && before.join(" ") === "d4") lastQuip = quip("englund");
       else if (me === "w" && before[0] === "d4" && (mv.san === "g6" || mv.san === "Bg7") && plyBefore < 10 && !said.has("kid")) { lastQuip = quip("kid"); said.add("kid"); }
