@@ -58,6 +58,7 @@ const PIXEL_PIECES_BELOW = 768;
 const WIN_EMAIL = "cdegaetadesign@gmail.com";
 const WIN_LINE = "You beat Chris. He'd want to hear about it.";
 const WIN_GLITCH_MS = 140;     // one on/off flash of the winning piece + dot (even rhythm, no easing)
+const UNDOS_PER_GAME = 1;      // take-backs allowed per game
 const WIN_COUNT_LABEL = "Visitors who've beaten Chris: ";   // shared counter on the win screen (api/wins.js)
 const WIN_GLITCH_TIMES = 6;    // how many flashes (6 x 140ms = under a second)
 const SECTION_GAP = "1.5rem";   // space between every block (title, intro, ratings, status, buttons, play as, moves)
@@ -479,6 +480,7 @@ function buildUI() {
         </div>
         <div class="row-btns">
           <button class="btn primary" data-act="new"><span class="t">New game</span></button>
+          <button class="btn" data-act="undo"><span class="t">Undo</span></button>
           <button class="btn" data-act="flip"><span class="t">Flip</span></button>
           <button class="btn" data-act="resign"><span class="t">Resign</span></button>
         </div>
@@ -509,6 +511,7 @@ function boot(base) {
   let me = "w";                 // the visitor's color
   let sidePref = "w";
   let orient = "w";
+  let undosLeft = UNDOS_PER_GAME;
   let selected = null;
   let gameId = 0;
   let botBusy = false;
@@ -533,7 +536,7 @@ function boot(base) {
 
   // ── save / restore ──
   function save() {
-    try { localStorage.setItem(STORE_KEY, JSON.stringify({ moves: chess.history(), me, sidePref, orient, over })); } catch (e) {}
+    try { localStorage.setItem(STORE_KEY, JSON.stringify({ moves: chess.history(), me, sidePref, orient, over, undosLeft })); } catch (e) {}
   }
   function restore() {
     // testing: open the page with #test-win to get a mate-in-one (play Qxf7) and see the win celebration
@@ -548,7 +551,7 @@ function boot(base) {
       if (!s) return false;
       const c = new Chess();
       for (const m of s.moves || []) c.move(m);
-      chess = c; me = s.me || "w"; sidePref = s.sidePref || me; orient = s.orient || me; over = s.over || null;
+      chess = c; me = s.me || "w"; sidePref = s.sidePref || me; orient = s.orient || me; over = s.over || null; undosLeft = typeof s.undosLeft === "number" ? s.undosLeft : UNDOS_PER_GAME;
       return true;
     } catch (e) { return false; }
   }
@@ -639,6 +642,7 @@ function boot(base) {
   function updateButtons() {
     const h = chess.history().length;
     root.querySelector('[data-act="resign"]').disabled = !!over || h < 2;
+    root.querySelector('[data-act="undo"]').disabled = !!over || botBusy || undosLeft < 1 || h === 0 || (me === "b" && h <= 1);
     root.querySelectorAll(".seg button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.side === sidePref)));
   }
   const winCta = $(".win-cta");
@@ -771,7 +775,7 @@ function boot(base) {
 
   function newGame() {
     gameId++; botBusy = false; boardWrap.classList.remove("busy"); dot.classList.remove("think");
-    chess = new Chess(); over = null; selected = null; resignDecided = false; lastSource = null; started = false;
+    chess = new Chess(); over = null; selected = null; resignDecided = false; lastSource = null; started = false; undosLeft = UNDOS_PER_GAME;
     me = sidePref === "r" ? (Math.random() < 0.5 ? "w" : "b") : sidePref;
     orient = me;
     lastMain = "";
@@ -857,7 +861,17 @@ function boot(base) {
     const act = b.dataset.act;
     if (act === "new") newGame();
     if (act === "flip") { orient = orient === "w" ? "b" : "w"; render(false); save(); }
-    // no undo: tano's call, you live with your moves
+    if (act === "undo") {   // one take-back per game (tano's rule), and none once the game is over
+      if (undosLeft < 1 || over) return;
+      undosLeft--;
+      gameId++; botBusy = false; boardWrap.classList.remove("busy"); dot.classList.remove("think");
+      if (engine) engine.stop();
+      selected = null; lastSource = null;
+      chess.undo();
+      if (chess.turn() !== me) chess.undo();
+      render(false); save(); refreshStatus();
+      if (chess.turn() !== me) botTurn();
+    }
     if (act === "resign") {
       gameId++; botBusy = false; boardWrap.classList.remove("busy");
       over = { text: "You resigned", sub: "Respect. Tano does it all the time.", result: "resign" };
