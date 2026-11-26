@@ -68,6 +68,8 @@ const QUIPS = {
   castle:  ["King tucked away. Rare moment of responsibility."],
   gambit:  ["A pawn, on the house. It's a trap. Probably. \u{1F440}"],
   undo:    ["That's your one undo. Make it count.", "Undo spent. No more safety net.", "One take-back. Chris is keeping receipts."],
+  youBlundered: ["???"],
+  check:   ["It's only a matter of time..."],
   mated:   ["Checkmate. He's going to be insufferable about this.", "gg ez \u{1F639}", "Beaten by a 929. \u{1F62D}",
             "That's mate. Your undo can't save you now.",
             "Checkmate. He'd like you to know he wasn't even trying.", "Unlucky. Rematch?"],
@@ -81,6 +83,7 @@ function quip(group, piece) {
   return line.replace("{piece}", PIECE_NAME[piece] || "piece");
 }
 const WIN_GLITCH_MS = 140;     // one on/off flash of the winning piece + dot (even rhythm, no easing)
+const BLUNDER_LOSS = 20;       // your move gave away this much win chance → "???"
 const UNDOS_PER_GAME = 1;      // take-backs allowed per game
 const WIN_COUNT_LABEL = "Visitors who've beaten Chris: ";   // shared counter on the win screen (api/wins.js)
 const WIN_GLITCH_TIMES = 6;    // how many flashes (6 x 140ms = under a second)
@@ -536,6 +539,7 @@ function boot(base) {
   let orient = "w";
   let undosLeft = UNDOS_PER_GAME;
   let lastQuip = "";
+  let expectCp = null;   // engine score (Tano's side) right after his last move, to spot your blunders
   let selected = null;
   let gameId = 0;
   let botBusy = false;
@@ -758,11 +762,12 @@ function boot(base) {
     status("Tano is thinking", sourceText(lastSource));
     updateButtons();
     const t0 = performance.now();
-    let pick = null, src = null, grab = null;
+    let pick = null, src = null, grab = null, lines = [], youBlundered = false;
     try {
       if (!engine) engine = makeEngine();
-      const lines = await engine.analyse(chess.fen(), isMobile() ? DEPTH_MOBILE : DEPTH, MULTIPV);
+      lines = await engine.analyse(chess.fen(), isMobile() ? DEPTH_MOBILE : DEPTH, MULTIPV);
       if (id !== gameId) return;
+      youBlundered = expectCp != null && lines.length && winPct(lines[0].cp) - winPct(expectCp) >= BLUNDER_LOSS;
       grab = freeGrab(chess, lines);
       const b = grab ? null : bookMove(chess, lines);
       if (grab) { pick = grab; src = { type: "engine", san: grab, loss: 0 }; }
@@ -797,16 +802,20 @@ function boot(base) {
     lastSource = src;
     // pick a line of trash talk for this moment (or none)
     lastQuip = "";
+    const mine = mv && lines.find((l) => l.uci === uciOf(mv));
+    expectCp = mine ? mine.cp : null;
     if (mv) {
       const castled = /^O-O/.test(mv.san);
       const youCanTake = mv.piece === "p" && chess.moves({ verbose: true }).some((m) => m.to === mv.to && m.captured);
       if (mv.captured === "q") lastQuip = quip("queen");
       else if (grab && mv.captured) lastQuip = quip("hang", mv.captured);
+      else if (youBlundered) lastQuip = quip("youBlundered");
       else if (src.type === "engine" && src.loss >= 20) lastQuip = quip("blunder");
       else if (mv.piece === "k" && !castled && !wasCheck && plyBefore < BOOK_PLIES) lastQuip = quip("kingWalk");
       else if (castled) lastQuip = quip("castle");
       else if (src.type === "book" && plyBefore < 10 && youCanTake) lastQuip = quip("gambit");
       else if (prev && prev.captured && VALUE[prev.captured] >= 3 && !mv.captured) lastQuip = quip("youTook");
+      if (!lastQuip && chess.inCheck() && !chess.isCheckmate()) lastQuip = quip("check");
     }
     botBusy = false; boardWrap.classList.remove("busy"); dot.classList.remove("think");
     afterMove(true);
@@ -814,7 +823,7 @@ function boot(base) {
 
   function newGame() {
     gameId++; botBusy = false; boardWrap.classList.remove("busy"); dot.classList.remove("think");
-    chess = new Chess(); over = null; selected = null; resignDecided = false; lastSource = null; started = false; undosLeft = UNDOS_PER_GAME; lastQuip = "";
+    chess = new Chess(); over = null; selected = null; resignDecided = false; lastSource = null; started = false; undosLeft = UNDOS_PER_GAME; lastQuip = ""; expectCp = null;
     me = sidePref === "r" ? (Math.random() < 0.5 ? "w" : "b") : sidePref;
     orient = me;
     lastMain = "";
@@ -905,7 +914,7 @@ function boot(base) {
       undosLeft--;
       gameId++; botBusy = false; boardWrap.classList.remove("busy"); dot.classList.remove("think");
       if (engine) engine.stop();
-      selected = null; lastSource = null; lastQuip = quip("undo");
+      selected = null; lastSource = null; expectCp = null; lastQuip = quip("undo");
       chess.undo();
       if (chess.turn() !== me) chess.undo();
       render(false); save(); refreshStatus();
