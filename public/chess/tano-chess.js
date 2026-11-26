@@ -794,12 +794,13 @@ function boot(base) {
     status("Tano is thinking", sourceText(lastSource));
     updateButtons();
     const t0 = performance.now();
-    let pick = null, src = null, grab = null, lines = [], youBlundered = false;
+    let pick = null, src = null, grab = null, lines = [], youBlundered = false, youLost = null;
     try {
       if (!engine) engine = makeEngine();
       lines = await engine.analyse(chess.fen(), isMobile() ? DEPTH_MOBILE : DEPTH, MULTIPV);
       if (id !== gameId) return;
-      youBlundered = expectCp != null && lines.length && moveLoss(lines[0].cp, expectCp) >= BLUNDER_LOSS && hungPiece(chess);
+      youLost = expectCp != null && lines.length ? moveLoss(lines[0].cp, expectCp) : null;   // how much your last move gave away
+      youBlundered = youLost != null && youLost >= BLUNDER_LOSS && hungPiece(chess);
       grab = freeGrab(chess, lines);
       const b = grab ? null : bookMove(chess, lines);
       if (grab) { pick = grab; src = { type: "engine", san: grab, loss: 0 }; }
@@ -844,8 +845,10 @@ function boot(base) {
       src.hung = src.type === "engine" && src.loss >= 20 && hungPiece(chess);   // a real hung piece, not just a worse move
       // material Tano actually comes out ahead over your move + his reply (a trade or recapture nets ~0, so no gloating)
       const netGain = (mv.captured ? VALUE[mv.captured] : 0) - (prev && prev.captured ? VALUE[prev.captured] : 0);
-      if (mv.captured === "q" && netGain >= 2) lastQuip = quip("queen");
-      else if (grab && mv.captured && netGain >= 2) lastQuip = quip("hang", mv.captured);
+      // and the engine agrees your move was a real mistake (a good sacrifice doesn't get mocked)
+      const realGift = netGain >= 2 && (youLost == null || youLost >= BLUNDER_LOSS);
+      if (mv.captured === "q" && realGift) lastQuip = quip("queen");
+      else if (grab && mv.captured && realGift) lastQuip = quip("hang", mv.captured);
       else if (youBlundered) lastQuip = quip("youBlundered");
       else if (prev && prev.piece === "p" && "ah".includes(prev.from[0]) && !prev.captured && plyBefore <= 4 && !said.has("rookPawn")) { lastQuip = quip("rookPawn"); said.add("rookPawn"); }
       else if (me === "b" && mv.san === "c3" && before.join(" ") === "e4 e5 d4 exd4") lastQuip = quip("danish");
