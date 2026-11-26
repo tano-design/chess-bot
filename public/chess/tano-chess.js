@@ -79,18 +79,25 @@ const QUIPS = {
   losing:  ["Chris resigns 73% of his lost games. He'd rather not watch."],   // losing, near the endgame
   youResign: ["Respect. Tano does it all the time.", "Respect. Chris resigns 73% of his losses, so he gets it.",
             "Smart. Chris was about to start talking.", "Folded. Chris is screenshotting this. \u{1F639}"],
+  // openings
+  danish:  ["The Danish. Chris is giving away pawns on purpose this time."],
+  englund: ["The Englund Gambit. Chris knows exactly what he's doing. Allegedly."],
+  kid:     ["King's Indian. Chris plays this against 1.d4 almost every time. Hope you prepped."],
+  seenIt:  ["Chris has been in this exact position {n} times."],   // real count from his games
+  outOfBook: ["Out of book. It's all vibes from here."],
+  gambitTaken: ["Gambit accepted. Chris has seen this go both ways."],
   mated:   ["Checkmate. He's going to be insufferable about this.", "gg ez \u{1F639}", "Beaten by a 929. \u{1F62D}",
             "That's mate. Your undo can't save you now.",
             "Checkmate. He'd like you to know he wasn't even trying.", "Unlucky. Rematch?"],
 };
-const QUIP_CHANCE = { youTook: 0.6, castle: 0.5, gambit: 0.7, quiet: 0.15, e4: 0.5 };
+const QUIP_CHANCE = { youTook: 0.6, castle: 0.5, gambit: 0.7, quiet: 0.15, e4: 0.5, seenIt: 0.3, outOfBook: 0.6 };
 const RESIGN_STAT = /73%/;     // the resign stat is said at most once per game   // groups not listed always show
 const PIECE_NAME = { p: "pawn", n: "knight", b: "bishop", r: "rook", q: "queen", k: "king" };
 const VALUE = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
-function quip(group, piece, san) {
+function quip(group, piece, san, n) {
   if (Math.random() >= (QUIP_CHANCE[group] ?? 1)) return "";
   const list = QUIPS[group]; const line = list[Math.floor(Math.random() * list.length)];
-  return line.replace("{piece}", PIECE_NAME[piece] || "piece").replace("{san}", san || "Ke2");
+  return line.replace("{piece}", PIECE_NAME[piece] || "piece").replace("{san}", san || "Ke2").replace("{n}", n);
 }
 const WIN_GLITCH_MS = 140;     // one on/off flash of the winning piece + dot (even rhythm, no easing)
 const BIG_MISTAKE = 20;        // Tano never makes a mistake this size with his queen or king
@@ -557,7 +564,8 @@ function boot(base) {
   let undosLeft = UNDOS_PER_GAME;
   let lastQuip = "";
   let expectCp = null;
-  let said = new Set();  // stat lines already used this game   // engine score (Tano's side) right after his last move, to spot your blunders
+  let said = new Set();  // stat lines already used this game
+  let gambitSq = null;   // square of a pawn Tano just offered in the opening   // engine score (Tano's side) right after his last move, to spot your blunders
   let selected = null;
   let gameId = 0;
   let botBusy = false;
@@ -816,6 +824,8 @@ function boot(base) {
     if (id !== gameId) return;
     const plyBefore = chess.history().length, wasCheck = chess.inCheck();
     const prev = chess.history({ verbose: true }).pop();   // your last move
+    const before = chess.history(), prevSrc = lastSource;
+    const seenN = BOOK && BOOK.seen && BOOK.seen[fen4(chess.fen())];
     const mv = chess.move(pick);
     lastSource = src;
     // pick a line of trash talk for this moment (or none)
@@ -829,11 +839,18 @@ function boot(base) {
       else if (grab && mv.captured) lastQuip = quip("hang", mv.captured);
       else if (youBlundered) lastQuip = quip("youBlundered");
       else if (prev && prev.piece === "p" && "ah".includes(prev.from[0]) && !prev.captured && plyBefore <= 4) lastQuip = quip("rookPawn");
+      else if (me === "b" && mv.san === "c3" && before.join(" ") === "e4 e5 d4 exd4") lastQuip = quip("danish");
+      else if (me === "w" && mv.san === "e5" && before.join(" ") === "d4") lastQuip = quip("englund");
+      else if (me === "w" && before[0] === "d4" && (mv.san === "g6" || mv.san === "Bg7") && plyBefore < 10 && !said.has("kid")) { lastQuip = quip("kid"); said.add("kid"); }
+      else if (gambitSq && prev && prev.to === gambitSq && prev.captured === "p") lastQuip = quip("gambitTaken");
       else if (src.type === "engine" && src.loss >= 20) lastQuip = quip("blunder");
       else if (mv.piece === "k" && !castled && !wasCheck && plyBefore < BOOK_PLIES) lastQuip = quip("kingWalk", null, mv.san);
       else if (castled) lastQuip = quip("castle");
       else if (src.type === "book" && plyBefore < 10 && youCanTake) lastQuip = quip("gambit");
+      else if (src.type === "book" && seenN && plyBefore >= 2 && !said.has("seenIt")) { lastQuip = quip("seenIt", null, null, seenN); if (lastQuip) said.add("seenIt"); }
+      else if (src.type !== "book" && prevSrc && prevSrc.type === "book" && !said.has("outOfBook")) { said.add("outOfBook"); lastQuip = quip("outOfBook"); }
       else if (prev && prev.captured && VALUE[prev.captured] >= 3 && !mv.captured) lastQuip = quip("youTook");
+      gambitSq = src.type === "book" && plyBefore < 10 && youCanTake ? mv.to : null;
       if (!lastQuip && chess.inCheck() && !chess.isCheckmate()) lastQuip = quip("check");
       const h = chess.history().length;
       if (!lastQuip && expectCp != null && expectCp <= -300 && phaseOf(chess) === "endgame" && !said.has("losing")) {
@@ -853,7 +870,7 @@ function boot(base) {
 
   function newGame() {
     gameId++; botBusy = false; boardWrap.classList.remove("busy"); dot.classList.remove("think");
-    chess = new Chess(); over = null; selected = null; resignDecided = false; lastSource = null; started = false; undosLeft = UNDOS_PER_GAME; lastQuip = ""; expectCp = null; said = new Set();
+    chess = new Chess(); over = null; selected = null; resignDecided = false; lastSource = null; started = false; undosLeft = UNDOS_PER_GAME; lastQuip = ""; expectCp = null; said = new Set(); gambitSq = null;
     me = sidePref === "r" ? (Math.random() < 0.5 ? "w" : "b") : sidePref;
     orient = me;
     lastMain = "";
@@ -944,7 +961,7 @@ function boot(base) {
       undosLeft--;
       gameId++; botBusy = false; boardWrap.classList.remove("busy"); dot.classList.remove("think");
       if (engine) engine.stop();
-      selected = null; lastSource = null; expectCp = null; lastQuip = quip("undo");
+      selected = null; lastSource = null; expectCp = null; gambitSq = null; lastQuip = quip("undo");
       chess.undo();
       if (chess.turn() !== me) chess.undo();
       render(false); save(); refreshStatus();
