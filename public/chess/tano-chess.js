@@ -56,7 +56,30 @@ const DEPTH_MOBILE = 8;               // engine depth (phones)
 const PIXEL_PIECES_BELOW = 768;
 // shown when a visitor beats the bot: a button that emails Chris
 const WIN_EMAIL = "cdegaetadesign@gmail.com";
-const WIN_LINE = "You beat Chris. He'd want to hear about it.";
+const WIN_LINE = "You beat Chris. Go ahead, tell him. He hates that.";
+// ── trash talk ── one line is picked at random from a group when that moment happens. {piece} = the piece's name.
+const QUIPS = {
+  hang:    ["Thanks for the free {piece}. \u{1F639}", "Chris doesn't miss those. He misses everything else.", "Free real estate.",
+            "Blud is trolling \u{1F480}", "Did you mean to leave your {piece} there? \u{1F480}"],
+  queen:   ["Your queen has left the chat. \u{1F940}", "Rest in peace, your queen. \u{1F940}", "That was your queen, by the way. \u{1F480}"],
+  youTook: ["Okay, you earned that one. Chris is calling it a sacrifice.", "Chris is blaming lag for that. \u{1F940}", "Nice take. He'll be thinking about that one."],
+  blunder: ["That one's a blunder. Very on brand.", "Even Chris saw that coming. Too late. \u{1F480}", "Chris would like that one back. He doesn't get an undo either."],
+  kingWalk:["Ke2. Fully intentional. The king wanted fresh air.", "Ke2. Calculated. Don't ask by what.", "The king is walking because he can. \u{1F639}"],
+  castle:  ["King tucked away. Rare moment of responsibility."],
+  gambit:  ["A pawn, on the house. It's a trap. Probably.", "Free pawn? Sure. Totally free. \u{1F639}"],
+  undo:    ["That's your one undo. Make it count.", "Undo spent. No more safety net. \u{1F940}", "One take-back. Chris is keeping receipts."],
+  mated:   ["Checkmate. He's going to be insufferable about this.", "gg ez \u{1F639}", "Beaten by a 929. Sit with that. \u{1F480}",
+            "Checkmate. Chris is already telling people. \u{1F639}", "That's mate. Your undo can't save you now. \u{1F940}",
+            "Checkmate. He'd like you to know he wasn't even trying.", "Unlucky. Rematch? \u{1F480}"],
+};
+const QUIP_CHANCE = { youTook: 0.6, castle: 0.5, gambit: 0.7 };   // groups not listed always show
+const PIECE_NAME = { p: "pawn", n: "knight", b: "bishop", r: "rook", q: "queen", k: "king" };
+const VALUE = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
+function quip(group, piece) {
+  if (Math.random() >= (QUIP_CHANCE[group] ?? 1)) return "";
+  const list = QUIPS[group]; const line = list[Math.floor(Math.random() * list.length)];
+  return line.replace("{piece}", PIECE_NAME[piece] || "piece");
+}
 const WIN_GLITCH_MS = 140;     // one on/off flash of the winning piece + dot (even rhythm, no easing)
 const UNDOS_PER_GAME = 1;      // take-backs allowed per game
 const WIN_COUNT_LABEL = "Visitors who've beaten Chris: ";   // shared counter on the win screen (api/wins.js)
@@ -512,6 +535,7 @@ function boot(base) {
   let sidePref = "w";
   let orient = "w";
   let undosLeft = UNDOS_PER_GAME;
+  let lastQuip = "";
   let selected = null;
   let gameId = 0;
   let botBusy = false;
@@ -656,7 +680,7 @@ function boot(base) {
       winCta.querySelector(".mail").href = `mailto:${WIN_EMAIL}?subject=${encodeURIComponent("I beat TANOMATE")}&body=${encodeURIComponent(`Hey Chris, I just beat your chess bot in ${n} moves (${over.text.toLowerCase()}).`)}`;
     }
     if (over) { status(over.text, won ? WIN_LINE : over.sub); dot.classList.remove("think"); }
-    else if (chess.turn() === me) status(chess.inCheck() ? "Check. Your move" : "Your move", sourceText(lastSource));
+    else if (chess.turn() === me) status(chess.inCheck() ? "Check. Your move" : "Your move", lastQuip || sourceText(lastSource));
     updateButtons();
   }
 
@@ -666,7 +690,7 @@ function boot(base) {
     if (chess.isCheckmate()) {
       const youWon = chess.turn() !== me;
       over = youWon ? { text: "Checkmate. You win", sub: "You beat tano. Screenshot it.", result: "win" }
-                    : { text: "Checkmate. Tano wins", sub: "He's going to be insufferable about this.", result: "loss" };
+                    : { text: "Checkmate. Tano wins", sub: quip("mated"), result: "loss" };
     } else if (chess.isDraw() || chess.isStalemate()) {
       const why = chess.isStalemate() ? "Stalemate" : chess.isThreefoldRepetition() ? "Draw by repetition" : chess.isInsufficientMaterial() ? "Draw. Not enough pieces" : "Draw";
       const rec = (BOOK && BOOK.record) || null;
@@ -734,12 +758,12 @@ function boot(base) {
     status("Tano is thinking", sourceText(lastSource));
     updateButtons();
     const t0 = performance.now();
-    let pick = null, src = null;
+    let pick = null, src = null, grab = null;
     try {
       if (!engine) engine = makeEngine();
       const lines = await engine.analyse(chess.fen(), isMobile() ? DEPTH_MOBILE : DEPTH, MULTIPV);
       if (id !== gameId) return;
-      const grab = freeGrab(chess, lines);
+      grab = freeGrab(chess, lines);
       const b = grab ? null : bookMove(chess, lines);
       if (grab) { pick = grab; src = { type: "engine", san: grab, loss: 0 }; }
       else if (b) { pick = b.san; src = { type: "book", san: b.san, n: b.n, total: b.total }; }
@@ -767,15 +791,30 @@ function boot(base) {
     const wait = min - (performance.now() - t0);
     if (wait > 0) await sleep(wait);
     if (id !== gameId) return;
-    chess.move(pick);
+    const plyBefore = chess.history().length, wasCheck = chess.inCheck();
+    const prev = chess.history({ verbose: true }).pop();   // your last move
+    const mv = chess.move(pick);
     lastSource = src;
+    // pick a line of trash talk for this moment (or none)
+    lastQuip = "";
+    if (mv) {
+      const castled = /^O-O/.test(mv.san);
+      const youCanTake = mv.piece === "p" && chess.moves({ verbose: true }).some((m) => m.to === mv.to && m.captured);
+      if (mv.captured === "q") lastQuip = quip("queen");
+      else if (grab && mv.captured) lastQuip = quip("hang", mv.captured);
+      else if (src.type === "engine" && src.loss >= 20) lastQuip = quip("blunder");
+      else if (mv.piece === "k" && !castled && !wasCheck && plyBefore < BOOK_PLIES) lastQuip = quip("kingWalk");
+      else if (castled) lastQuip = quip("castle");
+      else if (src.type === "book" && plyBefore < 10 && youCanTake) lastQuip = quip("gambit");
+      else if (prev && prev.captured && VALUE[prev.captured] >= 3 && !mv.captured) lastQuip = quip("youTook");
+    }
     botBusy = false; boardWrap.classList.remove("busy"); dot.classList.remove("think");
     afterMove(true);
   }
 
   function newGame() {
     gameId++; botBusy = false; boardWrap.classList.remove("busy"); dot.classList.remove("think");
-    chess = new Chess(); over = null; selected = null; resignDecided = false; lastSource = null; started = false; undosLeft = UNDOS_PER_GAME;
+    chess = new Chess(); over = null; selected = null; resignDecided = false; lastSource = null; started = false; undosLeft = UNDOS_PER_GAME; lastQuip = "";
     me = sidePref === "r" ? (Math.random() < 0.5 ? "w" : "b") : sidePref;
     orient = me;
     lastMain = "";
@@ -866,7 +905,7 @@ function boot(base) {
       undosLeft--;
       gameId++; botBusy = false; boardWrap.classList.remove("busy"); dot.classList.remove("think");
       if (engine) engine.stop();
-      selected = null; lastSource = null;
+      selected = null; lastSource = null; lastQuip = quip("undo");
       chess.undo();
       if (chess.turn() !== me) chess.undo();
       render(false); save(); refreshStatus();
