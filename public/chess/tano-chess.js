@@ -94,6 +94,12 @@ const QUIP_CHANCE = { youTook: 0.6, castle: 0.5, gambit: 0.7, quiet: 0.15, e4: 0
 const RESIGN_STAT = /73%/;     // the resign stat is said at most once per game   // groups not listed always show
 const PIECE_NAME = { p: "pawn", n: "knight", b: "bishop", r: "rook", q: "queen", k: "king" };
 const VALUE = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
+// can the side to move now win a knight or bigger for free, or with a cheaper piece? (a real hung piece)
+function hungPiece(chess) {
+  const tano = chess.turn() === "w" ? "b" : "w";
+  return chess.moves({ verbose: true }).some((m) => m.captured && VALUE[m.captured] >= 3 &&
+    (VALUE[m.piece] < VALUE[m.captured] || !chess.isAttacked(m.to, tano)));
+}
 function quip(group, piece, san, n) {
   if (Math.random() >= (QUIP_CHANCE[group] ?? 1)) return "";
   const list = QUIPS[group]; const line = list[Math.floor(Math.random() * list.length)];
@@ -689,7 +695,7 @@ function boot(base) {
     if (src.type === "book") return src.total > 1
       ? `From memory: tano played <b>${src.san}</b> here ${src.n === src.total ? "every time" : Math.round((100 * src.n) / src.total) + "% of the time"}.`
       : `From memory: <b>${src.san}</b>, straight out of one of tano's games.`;
-    if (src.loss >= 20) return `<b>${src.san}</b>. That one's a blunder. Very on brand.`;
+    if (src.loss >= 20 && src.hung) return `<b>${src.san}</b>. That one's a blunder. Very on brand.`;
     if (src.loss >= 10) return `Improvising: <b>${src.san}</b>. Not his best.`;
     return `Improvising: <b>${src.san}</b>.`;
   }
@@ -793,7 +799,7 @@ function boot(base) {
       if (!engine) engine = makeEngine();
       lines = await engine.analyse(chess.fen(), isMobile() ? DEPTH_MOBILE : DEPTH, MULTIPV);
       if (id !== gameId) return;
-      youBlundered = expectCp != null && lines.length && moveLoss(lines[0].cp, expectCp) >= BLUNDER_LOSS;
+      youBlundered = expectCp != null && lines.length && moveLoss(lines[0].cp, expectCp) >= BLUNDER_LOSS && hungPiece(chess);
       grab = freeGrab(chess, lines);
       const b = grab ? null : bookMove(chess, lines);
       if (grab) { pick = grab; src = { type: "engine", san: grab, loss: 0 }; }
@@ -835,6 +841,7 @@ function boot(base) {
     if (mv) {
       const castled = /^O-O/.test(mv.san);
       const youCanTake = mv.piece === "p" && chess.moves({ verbose: true }).some((m) => m.to === mv.to && m.captured);
+      src.hung = src.type === "engine" && src.loss >= 20 && hungPiece(chess);   // a real hung piece, not just a worse move
       if (mv.captured === "q") lastQuip = quip("queen");
       else if (grab && mv.captured) lastQuip = quip("hang", mv.captured);
       else if (youBlundered) lastQuip = quip("youBlundered");
@@ -843,7 +850,7 @@ function boot(base) {
       else if (me === "w" && mv.san === "e5" && before.join(" ") === "d4") lastQuip = quip("englund");
       else if (me === "w" && before[0] === "d4" && (mv.san === "g6" || mv.san === "Bg7") && plyBefore < 10 && !said.has("kid")) { lastQuip = quip("kid"); said.add("kid"); }
       else if (gambitSq && prev && prev.to === gambitSq && prev.captured === "p") lastQuip = quip("gambitTaken");
-      else if (src.type === "engine" && src.loss >= 20) lastQuip = quip("blunder");
+      else if (src.hung) lastQuip = quip("blunder");
       else if (mv.piece === "k" && !castled && !wasCheck && plyBefore < BOOK_PLIES) lastQuip = quip("kingWalk", null, mv.san);
       else if (castled) lastQuip = quip("castle");
       else if (src.type === "book" && plyBefore < 10 && youCanTake) lastQuip = quip("gambit");
