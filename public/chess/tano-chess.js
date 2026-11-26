@@ -63,7 +63,8 @@ const QUIPS = {
             "Blud is trolling \u{1F480}", "Did you mean to leave your {piece} there? \u{1F480}"],
   queen:   ["Your queen has left the chat. \u{1F940}", "Rest in peace, your queen. \u{1F940}", "That was your queen, by the way. \u{1F480}"],
   youTook: ["Okay, you earned that one. Chris is calling it a sacrifice.", "Nice take. He'll be thinking about that one."],
-  blunder: ["That one's a blunder. Very on brand. \u{1FAE0}", "Chris would like that one back."],
+  blunder: ["That one's a blunder. Very on brand. \u{1FAE0}", "Chris would like that one back.",
+            "598 games and he still hasn't learned to stop doing that."],
   kingWalk:["{san}. Fully intentional. The king wanted fresh air.", "{san}. Calculated. Don't ask by what."],
   castle:  ["King tucked away. Rare moment of responsibility."],
   gambit:  ["A pawn, on the house. It's a trap. Probably. \u{1F440}"],
@@ -71,11 +72,19 @@ const QUIPS = {
   youBlundered: ["???"],
   rookPawn: ["Bro what?", "Bro what? \u{1F62D}", "Rook pawn? Chris has questions.", "Bro is trolling \u{1F480}"],
   check:   ["It's only a matter of time..."],
+  // real stats from tano's games. "quiet" lines show now and then when nothing else is happening, each once per game
+  quiet:   ["Half of Chris's moves match Stockfish's top pick. The other half are why you're still in this.",
+            "Chris plays his cleanest chess in the endgame. Don't let it get there."],
+  e4:      ["Chris opens 1.e4 in 80% of his games. Predictable? Maybe. Effective? Also maybe."],
+  losing:  ["Chris resigns 73% of his lost games. He'd rather not watch."],   // losing, near the endgame
+  youResign: ["Respect. Tano does it all the time.", "Respect. Chris resigns 73% of his losses, so he gets it.",
+            "Smart. Chris was about to start talking.", "Folded. Chris is screenshotting this. \u{1F639}"],
   mated:   ["Checkmate. He's going to be insufferable about this.", "gg ez \u{1F639}", "Beaten by a 929. \u{1F62D}",
             "That's mate. Your undo can't save you now.",
             "Checkmate. He'd like you to know he wasn't even trying.", "Unlucky. Rematch?"],
 };
-const QUIP_CHANCE = { youTook: 0.6, castle: 0.5, gambit: 0.7 };   // groups not listed always show
+const QUIP_CHANCE = { youTook: 0.6, castle: 0.5, gambit: 0.7, quiet: 0.15, e4: 0.5 };
+const RESIGN_STAT = /73%/;     // the resign stat is said at most once per game   // groups not listed always show
 const PIECE_NAME = { p: "pawn", n: "knight", b: "bishop", r: "rook", q: "queen", k: "king" };
 const VALUE = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
 function quip(group, piece, san) {
@@ -547,7 +556,8 @@ function boot(base) {
   let orient = "w";
   let undosLeft = UNDOS_PER_GAME;
   let lastQuip = "";
-  let expectCp = null;   // engine score (Tano's side) right after his last move, to spot your blunders
+  let expectCp = null;
+  let said = new Set();  // stat lines already used this game   // engine score (Tano's side) right after his last move, to spot your blunders
   let selected = null;
   let gameId = 0;
   let botBusy = false;
@@ -786,7 +796,7 @@ function boot(base) {
           resignDecided = true;
           if (Math.random() < ((BOOK && BOOK.resignRate) || 0.7)) {
             await sleep(rand(700, 1300)); if (id !== gameId) return;
-            over = { text: "Tano resigned", sub: `He resigns ${Math.round(((BOOK && BOOK.resignRate) || 0.7) * 100)}% of the games he loses. Real stat.`, result: "win" };
+            over = { text: "Tano resigned", sub: said.has("losing") ? "Told you. He'd rather not watch." : `He resigns ${Math.round(((BOOK && BOOK.resignRate) || 0.7) * 100)}% of the games he loses. Real stat.`, result: "win" };
             track("tanobot_end", { result: "win_resign", moves: chess.history().length });
             botBusy = false; boardWrap.classList.remove("busy"); save(); refreshStatus(); celebrate(); return;
           }
@@ -825,6 +835,17 @@ function boot(base) {
       else if (src.type === "book" && plyBefore < 10 && youCanTake) lastQuip = quip("gambit");
       else if (prev && prev.captured && VALUE[prev.captured] >= 3 && !mv.captured) lastQuip = quip("youTook");
       if (!lastQuip && chess.inCheck() && !chess.isCheckmate()) lastQuip = quip("check");
+      const h = chess.history().length;
+      if (!lastQuip && expectCp != null && expectCp <= -300 && phaseOf(chess) === "endgame" && !said.has("losing")) {
+        lastQuip = quip("losing"); if (lastQuip) said.add("losing");
+      }
+      if (!lastQuip && h <= 6 && chess.history()[0] === "e4" && me === "b" && !said.has("e4")) {
+        lastQuip = quip("e4"); if (lastQuip) said.add("e4");
+      }
+      if (!lastQuip && h > 6) {
+        const q = quip("quiet");
+        if (q && !said.has(q)) { lastQuip = q; said.add(q); }
+      }
     }
     botBusy = false; boardWrap.classList.remove("busy"); dot.classList.remove("think");
     afterMove(true);
@@ -832,7 +853,7 @@ function boot(base) {
 
   function newGame() {
     gameId++; botBusy = false; boardWrap.classList.remove("busy"); dot.classList.remove("think");
-    chess = new Chess(); over = null; selected = null; resignDecided = false; lastSource = null; started = false; undosLeft = UNDOS_PER_GAME; lastQuip = ""; expectCp = null;
+    chess = new Chess(); over = null; selected = null; resignDecided = false; lastSource = null; started = false; undosLeft = UNDOS_PER_GAME; lastQuip = ""; expectCp = null; said = new Set();
     me = sidePref === "r" ? (Math.random() < 0.5 ? "w" : "b") : sidePref;
     orient = me;
     lastMain = "";
@@ -931,7 +952,8 @@ function boot(base) {
     }
     if (act === "resign") {
       gameId++; botBusy = false; boardWrap.classList.remove("busy");
-      over = { text: "You resigned", sub: "Respect. Tano does it all the time.", result: "resign" };
+      let sub; do { sub = quip("youResign"); } while (said.has("losing") && RESIGN_STAT.test(sub));
+      over = { text: "You resigned", sub, result: "resign" };
       track("tanobot_end", { result: "resign", moves: chess.history().length });
       save(); refreshStatus();
     }
