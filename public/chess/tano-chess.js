@@ -78,7 +78,7 @@ const QUIPS = {
   quiet:   ["Half of Chris's moves match Stockfish's top pick. The other half are why you're still in this.",
             "Chris plays his cleanest chess in the endgame. Don't let it get there."],
   e4:      ["Chris opens 1.e4 in 80% of his games. Predictable? Maybe. Effective? Also maybe."],
-  crushing: ["Gng it's over. The resign button is right there.", "We both know how this ends, gng.",
+  crushing: ["Gng it's over. The resign button is right there.", "We both know how this ends, g.",
             "Bro is playing for a stalemate miracle. \u{1F480}", "It's resign time \u{1F63D}"],   // Tano is way ahead, once per game
   losing:  ["Chris resigns 73% of his lost games. He'd rather not watch."],   // losing, near the endgame
   youResign: ["Respect. Tano does it all the time.", "Respect. Chris resigns 73% of his losses, so he gets it.",
