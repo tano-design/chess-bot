@@ -64,7 +64,7 @@ const QUIPS = {
   queen:   ["Your queen has left the chat. \u{1F940}", "Rest in peace, your queen. \u{1F940}", "That was your queen, by the way. \u{1F480}"],
   youTook: ["Okay, you earned that one. Chris is calling it a sacrifice.", "Nice take. He'll be thinking about that one."],
   blunder: ["That one's a blunder. Very on brand. \u{1FAE0}", "Chris would like that one back."],
-  kingWalk:["Ke2. Fully intentional. The king wanted fresh air.", "Ke2. Calculated. Don't ask by what."],
+  kingWalk:["{san}. Fully intentional. The king wanted fresh air.", "{san}. Calculated. Don't ask by what."],
   castle:  ["King tucked away. Rare moment of responsibility."],
   gambit:  ["A pawn, on the house. It's a trap. Probably. \u{1F440}"],
   undo:    ["That's your one undo. Make it count.", "Undo spent. No more safety net.", "One take-back. Chris is keeping receipts."],
@@ -78,10 +78,10 @@ const QUIPS = {
 const QUIP_CHANCE = { youTook: 0.6, castle: 0.5, gambit: 0.7 };   // groups not listed always show
 const PIECE_NAME = { p: "pawn", n: "knight", b: "bishop", r: "rook", q: "queen", k: "king" };
 const VALUE = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
-function quip(group, piece) {
+function quip(group, piece, san) {
   if (Math.random() >= (QUIP_CHANCE[group] ?? 1)) return "";
   const list = QUIPS[group]; const line = list[Math.floor(Math.random() * list.length)];
-  return line.replace("{piece}", PIECE_NAME[piece] || "piece");
+  return line.replace("{piece}", PIECE_NAME[piece] || "piece").replace("{san}", san || "Ke2");
 }
 const WIN_GLITCH_MS = 140;     // one on/off flash of the winning piece + dot (even rhythm, no easing)
 const BIG_MISTAKE = 20;        // Tano never makes a mistake this size with his queen or king
@@ -104,6 +104,11 @@ let BOOK = null;
 const STORE_KEY = "tanobot-game-v1";
 const fen4 = (fen) => fen.split(" ").slice(0, 4).join(" ");
 const winPct = (cp) => 50 + 50 * (2 / (1 + Math.exp(-0.00368208 * cp)) - 1);
+// How bad a move is. Win chance alone hides blunders when you're already way ahead (up a queen, hanging
+// a bishop only costs ~6% win chance), so material thrown away also counts: ~300cp (a piece) = 25.
+const CP_CLAMP = 1500;
+const clampCp = (cp) => Math.max(-CP_CLAMP, Math.min(CP_CLAMP, cp));
+const moveLoss = (bestCp, cp) => Math.max(0, winPct(bestCp) - winPct(cp), (clampCp(bestCp) - clampCp(cp)) / 12);
 const FILES = "abcdefgh";
 const rand = (a, b) => a + Math.random() * (b - a);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -210,7 +215,7 @@ function freeGrab(chess, lines) {
 // how much win chance a move gives away, from the engine lines (null if the engine didn't list it)
 function lossOf(lines, uci) {
   const l = lines.find((x) => x.uci === uci);
-  return l ? Math.max(0, winPct(lines[0].cp) - winPct(l.cp)) : null;
+  return l ? moveLoss(lines[0].cp, l.cp) : null;
 }
 function bookMove(chess, lines) {
   if (!BOOK || chess.history().length >= BOOK_PLIES) return null;
@@ -235,12 +240,11 @@ function humanMove(chess, lines) {
   const acc = BOOK && BOOK.accuracy && BOOK.accuracy[phase];
   const style = (BOOK && BOOK.style && BOOK.style[phase]) || {};
   const edges = (BOOK && BOOK.buckets) || [2, 5, 10, 20, 35];
-  const best = winPct(lines[0].cp);
   const cands = [];
   for (const l of lines) {
     let mv;
     try { mv = new Chess(chess.fen()).move({ from: l.uci.slice(0, 2), to: l.uci.slice(2, 4), promotion: l.uci[4] || "q" }); } catch (e) { continue; }
-    const loss = Math.max(0, best - winPct(l.cp));
+    const loss = moveLoss(lines[0].cp, l.cp);
     // Chris blunders pieces, not his queen or king: no big mistakes made by walking either one into trouble
     if (loss >= BIG_MISTAKE && (mv.piece === "q" || mv.piece === "k") && l !== lines[0]) continue;
     if (phase === "opening" && (loss >= OPENING_MAX_LOSS || trollMove(mv, chess.history().length, chess.inCheck())) && l !== lines[0]) continue;
@@ -771,7 +775,7 @@ function boot(base) {
       if (!engine) engine = makeEngine();
       lines = await engine.analyse(chess.fen(), isMobile() ? DEPTH_MOBILE : DEPTH, MULTIPV);
       if (id !== gameId) return;
-      youBlundered = expectCp != null && lines.length && winPct(lines[0].cp) - winPct(expectCp) >= BLUNDER_LOSS;
+      youBlundered = expectCp != null && lines.length && moveLoss(lines[0].cp, expectCp) >= BLUNDER_LOSS;
       grab = freeGrab(chess, lines);
       const b = grab ? null : bookMove(chess, lines);
       if (grab) { pick = grab; src = { type: "engine", san: grab, loss: 0 }; }
@@ -816,7 +820,7 @@ function boot(base) {
       else if (youBlundered) lastQuip = quip("youBlundered");
       else if (prev && prev.piece === "p" && "ah".includes(prev.from[0]) && !prev.captured && plyBefore <= 4) lastQuip = quip("rookPawn");
       else if (src.type === "engine" && src.loss >= 20) lastQuip = quip("blunder");
-      else if (mv.piece === "k" && !castled && !wasCheck && plyBefore < BOOK_PLIES) lastQuip = quip("kingWalk");
+      else if (mv.piece === "k" && !castled && !wasCheck && plyBefore < BOOK_PLIES) lastQuip = quip("kingWalk", null, mv.san);
       else if (castled) lastQuip = quip("castle");
       else if (src.type === "book" && plyBefore < 10 && youCanTake) lastQuip = quip("gambit");
       else if (prev && prev.captured && VALUE[prev.captured] >= 3 && !mv.captured) lastQuip = quip("youTook");
