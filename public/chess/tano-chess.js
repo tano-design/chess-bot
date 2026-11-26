@@ -284,7 +284,7 @@ const css = `
   :host { all: initial; display: block; visibility: inherit; }   /* "all: initial" would otherwise force it visible when the page hides it */
   * { box-sizing: border-box; margin: 0; padding: 0; }
   .wrap {
-    --bg: #191919; --fg: rgba(255,255,255,.85); --strong: #fff; --mute: rgba(255,255,255,.42); --line: rgba(255,255,255,.12);
+    --bg: #191919; --fg: #DCDCDC; --strong: #fff; --mute: #7A7A7A;   /* solid greys (same look on #191919) so emojis stay full color */ --line: rgba(255,255,255,.12);
     --field: rgba(255,255,255,.07); --btn-line: rgba(255,255,255,.18); --thumb: #3a3a3a;
     --glitch-hi: #ffffff; --glitch-lo: rgba(255,255,255,.25);
     --pink: ${PINK}; --pink-dark: ${PINK_DARK};
@@ -296,7 +296,7 @@ const css = `
     .wrap { padding: 0 ${MOBILE_SIDE_PAD} ${MOBILE_BOTTOM_PAD}; }
   }
   .wrap.light {
-    --bg: #D9D9D9; --fg: rgba(25,25,25,.9); --strong: #191919; --mute: rgba(25,25,25,.55); --line: rgba(25,25,25,.15);
+    --bg: #D9D9D9; --fg: #2C2C2C; --strong: #191919; --mute: #6F6F6F; --line: rgba(25,25,25,.15);
     --field: rgba(25,25,25,.06); --btn-line: #AEAEAE; --thumb: #AEAEAE;
     --glitch-hi: #e78cf9; --glitch-lo: #9d649f;
   }
