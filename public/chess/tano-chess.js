@@ -69,7 +69,7 @@ const QUIPS = {
   gambit:  ["A pawn, on the house. It's a trap. Probably. \u{1F440}"],
   undo:    ["That's your one undo. Make it count.", "Undo spent. No more safety net.", "One take-back. Chris is keeping receipts."],
   youBlundered: ["???"],
-  rookPawn: ["Buddy what?", "Buddy what? \u{1F62D}", "Rook pawn? Chris has questions.", "Buddy is trolling \u{1F480}"],
+  rookPawn: ["Bro what?", "Bro what? \u{1F62D}", "Rook pawn? Chris has questions.", "Bro is trolling \u{1F480}"],
   check:   ["It's only a matter of time..."],
   mated:   ["Checkmate. He's going to be insufferable about this.", "gg ez \u{1F639}", "Beaten by a 929. \u{1F62D}",
             "That's mate. Your undo can't save you now.",
@@ -84,6 +84,7 @@ function quip(group, piece) {
   return line.replace("{piece}", PIECE_NAME[piece] || "piece");
 }
 const WIN_GLITCH_MS = 140;     // one on/off flash of the winning piece + dot (even rhythm, no easing)
+const BIG_MISTAKE = 20;        // Tano never makes a mistake this size with his queen or king
 const BLUNDER_LOSS = 20;       // your move gave away this much win chance → "???"
 const UNDOS_PER_GAME = 1;      // take-backs allowed per game
 const WIN_COUNT_LABEL = "Visitors who've beaten Chris: ";   // shared counter on the win screen (api/wins.js)
@@ -240,6 +241,8 @@ function humanMove(chess, lines) {
     let mv;
     try { mv = new Chess(chess.fen()).move({ from: l.uci.slice(0, 2), to: l.uci.slice(2, 4), promotion: l.uci[4] || "q" }); } catch (e) { continue; }
     const loss = Math.max(0, best - winPct(l.cp));
+    // Chris blunders pieces, not his queen or king: no big mistakes made by walking either one into trouble
+    if (loss >= BIG_MISTAKE && (mv.piece === "q" || mv.piece === "k") && l !== lines[0]) continue;
     if (phase === "opening" && (loss >= OPENING_MAX_LOSS || trollMove(mv, chess.history().length, chess.inCheck())) && l !== lines[0]) continue;
     let b = edges.findIndex((e) => loss < e); if (b < 0) b = edges.length;
     const w = tagsOf(mv).reduce((a, t) => a * (style[t] || 1), 1);
