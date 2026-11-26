@@ -69,6 +69,7 @@ const QUIPS = {
   gambit:  ["A pawn, on the house. It's a trap. Probably. \u{1F440}"],
   undo:    ["That's your one undo. Make it count.", "Undo spent. No more safety net.", "One take-back. Chris is keeping receipts."],
   youBlundered: ["???"],
+  rookPawn: ["Buddy what?", "Buddy what? \u{1F62D}", "Rook pawn? Chris has questions.", "Buddy is trolling \u{1F480}"],
   check:   ["It's only a matter of time..."],
   mated:   ["Checkmate. He's going to be insufferable about this.", "gg ez \u{1F639}", "Beaten by a 929. \u{1F62D}",
             "That's mate. Your undo can't save you now.",
@@ -810,6 +811,7 @@ function boot(base) {
       if (mv.captured === "q") lastQuip = quip("queen");
       else if (grab && mv.captured) lastQuip = quip("hang", mv.captured);
       else if (youBlundered) lastQuip = quip("youBlundered");
+      else if (prev && prev.piece === "p" && "ah".includes(prev.from[0]) && !prev.captured && plyBefore <= 4) lastQuip = quip("rookPawn");
       else if (src.type === "engine" && src.loss >= 20) lastQuip = quip("blunder");
       else if (mv.piece === "k" && !castled && !wasCheck && plyBefore < BOOK_PLIES) lastQuip = quip("kingWalk");
       else if (castled) lastQuip = quip("castle");
