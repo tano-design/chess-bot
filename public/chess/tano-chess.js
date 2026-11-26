@@ -78,6 +78,8 @@ const QUIPS = {
   quiet:   ["Half of Chris's moves match Stockfish's top pick. The other half are why you're still in this.",
             "Chris plays his cleanest chess in the endgame. Don't let it get there."],
   e4:      ["Chris opens 1.e4 in 80% of his games. Predictable? Maybe. Effective? Also maybe."],
+  crushing: ["Gng it's over. The resign button is right there.", "We both know how this ends, gng.",
+            "Bro is playing for a stalemate miracle. \u{1F480}", "It's resign time \u{1F63D}"],   // Tano is way ahead, once per game
   losing:  ["Chris resigns 73% of his lost games. He'd rather not watch."],   // losing, near the endgame
   youResign: ["Respect. Tano does it all the time.", "Respect. Chris resigns 73% of his losses, so he gets it.",
             "Smart. Chris was about to start talking.", "Folded. Chris is screenshotting this. \u{1F639}"],
@@ -109,6 +111,7 @@ function quip(group, piece, san, n) {
 }
 const WIN_GLITCH_MS = 140;     // one on/off flash of the winning piece + dot (even rhythm, no easing)
 const BIG_MISTAKE = 20;        // Tano never makes a mistake this size with his queen or king
+const CRUSHING_CP = 700;       // Tano this far ahead (about a rook+ or mate coming) → "resign" lines
 const BLUNDER_LOSS = 20;       // your move gave away this much win chance → "???"
 const UNDOS_PER_GAME = 1;      // take-backs allowed per game
 const WIN_COUNT_LABEL = "Visitors who've beaten Chris: ";   // shared counter on the win screen (api/wins.js)
@@ -870,6 +873,9 @@ function boot(base) {
       const h = chess.history().length;
       if (!lastQuip && expectCp != null && expectCp <= -300 && phaseOf(chess) === "endgame" && !said.has("losing")) {
         lastQuip = quip("losing"); if (lastQuip) said.add("losing");
+      }
+      if (!lastQuip && expectCp != null && expectCp >= CRUSHING_CP && h > 10 && !said.has("crushing")) {
+        lastQuip = quip("crushing"); if (lastQuip) said.add("crushing");
       }
       if (!lastQuip && h <= 6 && chess.history()[0] === "e4" && me === "b" && !said.has("e4")) {
         lastQuip = quip("e4"); if (lastQuip) said.add("e4");
