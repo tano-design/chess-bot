@@ -845,9 +845,10 @@ function boot(base) {
       src.hung = src.type === "engine" && src.loss >= 20 && hungPiece(chess);   // a real hung piece, not just a worse move
       // material Tano actually comes out ahead over your move + his reply (a trade or recapture nets ~0, so no gloating)
       const netGain = (mv.captured ? VALUE[mv.captured] : 0) - (prev && prev.captured ? VALUE[prev.captured] : 0);
-      // and the engine agrees your move was a real mistake (a good sacrifice doesn't get mocked)
+      // and the engine agrees your move was a real mistake (a good sacrifice doesn't get mocked).
+      // Winning your queen for a bishop or less always counts, even when Tano set it up a move earlier.
       const realGift = netGain >= 2 && (youLost == null || youLost >= BLUNDER_LOSS);
-      if (mv.captured === "q" && realGift) lastQuip = quip("queen");
+      if (mv.captured === "q" && (realGift || netGain >= 5)) lastQuip = quip("queen");
       else if (grab && mv.captured && realGift) lastQuip = quip("hang", mv.captured);
       else if (youBlundered) lastQuip = quip("youBlundered");
       else if (prev && prev.piece === "p" && "ah".includes(prev.from[0]) && !prev.captured && plyBefore <= 4 && !said.has("rookPawn")) { lastQuip = quip("rookPawn"); said.add("rookPawn"); }
