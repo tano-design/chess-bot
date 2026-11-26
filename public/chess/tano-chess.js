@@ -62,15 +62,15 @@ const QUIPS = {
   hang:    ["Thanks for the free {piece}. \u{1F639}", "Chris doesn't miss those. He misses everything else.", "Free real estate.",
             "Blud is trolling \u{1F480}", "Did you mean to leave your {piece} there? \u{1F480}"],
   queen:   ["Your queen has left the chat. \u{1F940}", "Rest in peace, your queen. \u{1F940}", "That was your queen, by the way. \u{1F480}"],
-  youTook: ["Okay, you earned that one. Chris is calling it a sacrifice.", "Chris is blaming lag for that. \u{1F940}", "Nice take. He'll be thinking about that one."],
-  blunder: ["That one's a blunder. Very on brand.", "Even Chris saw that coming. Too late. \u{1F480}", "Chris would like that one back. He doesn't get an undo either."],
-  kingWalk:["Ke2. Fully intentional. The king wanted fresh air.", "Ke2. Calculated. Don't ask by what.", "The king is walking because he can. \u{1F639}"],
+  youTook: ["Okay, you earned that one. Chris is calling it a sacrifice.", "Nice take. He'll be thinking about that one."],
+  blunder: ["That one's a blunder. Very on brand.", "Chris would like that one back."],
+  kingWalk:["Ke2. Fully intentional. The king wanted fresh air.", "Ke2. Calculated. Don't ask by what."],
   castle:  ["King tucked away. Rare moment of responsibility."],
-  gambit:  ["A pawn, on the house. It's a trap. Probably.", "Free pawn? Sure. Totally free. \u{1F639}"],
-  undo:    ["That's your one undo. Make it count.", "Undo spent. No more safety net. \u{1F940}", "One take-back. Chris is keeping receipts."],
+  gambit:  ["A pawn, on the house. It's a trap. Probably."],
+  undo:    ["That's your one undo. Make it count.", "Undo spent. No more safety net.", "One take-back. Chris is keeping receipts."],
   mated:   ["Checkmate. He's going to be insufferable about this.", "gg ez \u{1F639}", "Beaten by a 929. Sit with that. \u{1F480}",
-            "Checkmate. Chris is already telling people. \u{1F639}", "That's mate. Your undo can't save you now. \u{1F940}",
-            "Checkmate. He'd like you to know he wasn't even trying.", "Unlucky. Rematch? \u{1F480}"],
+            "That's mate. Your undo can't save you now.",
+            "Checkmate. He'd like you to know he wasn't even trying.", "Unlucky. Rematch?"],
 };
 const QUIP_CHANCE = { youTook: 0.6, castle: 0.5, gambit: 0.7 };   // groups not listed always show
 const PIECE_NAME = { p: "pawn", n: "knight", b: "bishop", r: "rook", q: "queen", k: "king" };
