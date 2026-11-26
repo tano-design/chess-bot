@@ -68,7 +68,7 @@ const QUIPS = {
   castle:  ["King tucked away. Rare moment of responsibility."],
   gambit:  ["A pawn, on the house. It's a trap. Probably. \u{1F440}"],
   undo:    ["That's your one undo. Make it count.", "Undo spent. No more safety net.", "One take-back. Chris is keeping receipts."],
-  mated:   ["Checkmate. He's going to be insufferable about this.", "gg ez \u{1F62D}", "Beaten by a 929. Sit with that. \u{1F480}",
+  mated:   ["Checkmate. He's going to be insufferable about this.", "gg ez \u{1F639}", "Beaten by a 929. \u{1F62D}",
             "That's mate. Your undo can't save you now.",
             "Checkmate. He'd like you to know he wasn't even trying.", "Unlucky. Rematch?"],
 };
