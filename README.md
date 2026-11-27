@@ -30,8 +30,6 @@ The design matches [tanodsgn.com](https://tanodsgn.com): Monument Grotesk and OC
 
 - [Stockfish](https://github.com/official-stockfish/Stockfish) 19 via [stockfish.js](https://github.com/nmrugg/stockfish.js), GPLv3 (see `public/chess/STOCKFISH-LICENSE.txt`)
 - [chess.js](https://github.com/jhlywa/chess.js), BSD-2-Clause
-- Pieces: the "cburnett" set by Colin M.L. Burnett, recolored
-- Built with help from Claude
 
 Full credits are in `public/chess/CREDITS.txt`.
 
