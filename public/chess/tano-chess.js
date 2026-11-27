@@ -61,7 +61,8 @@ const WIN_LINE = "You beat Chris. Go ahead, tell him. He hates that.";
 const QUIPS = {
   hang:    ["Thanks for the free {piece}. \u{1F639}", "Chris doesn't miss those. He misses everything else.", "Free real estate.",
             "Blud is trolling \u{1F480}", "Did you mean to leave your {piece} there? \u{1F480}", "Thanks buddy.", "Wait, which one of us is the bot?", "Even Stockfish looked away. \u{1F62D}",
-            "Quick reCAPTCHA before your next move. Select all squares with a blunder."],
+            "Quick reCAPTCHA before your next move. Select all squares with a blunder.",
+            "Sonion \u{1F62D}\u{1F62D}", "\"insert Patrick drooling gif\"", "Thought process? \u{1F914}", "yikes..."],
   queen:   ["Your queen has left the chat. \u{1F940}", "Rest in peace, your queen. \u{1F940}", "That was your queen, by the way. \u{1F480}"],
   youTook: ["Okay, you earned that one. Chris is calling it a sacrifice.", "Nice take. He'll be thinking about that one."],
   blunder: ["That one's a blunder. Very on brand. \u{1FAE0}", "Chris would like that one back.",
@@ -71,7 +72,8 @@ const QUIPS = {
   gambit:  ["A pawn, on the house. It's a trap. Probably. \u{1F440}"],
   undo:    ["That's your one undo. Make it count.", "Undo spent. No more safety net.", "One take-back. Chris is keeping receipts."],
   youBlundered: ["???", "Thanks buddy.", "Wait, which one of us is the bot?", "Even Stockfish looked away. \u{1F62D}",
-            "Quick reCAPTCHA before your next move. Select all squares with a blunder."],
+            "Quick reCAPTCHA before your next move. Select all squares with a blunder.",
+            "Sonion \u{1F62D}\u{1F62D}", "\"insert Patrick drooling gif\"", "Thought process? \u{1F914}", "yikes..."],
   rookPawn: ["Bro what?", "Bro what? \u{1F62D}", "Rook pawn? Chris has questions.", "Bro is trolling \u{1F480}", "What the helly"],
   check:   ["It's only a matter of time..."],
   // real stats from tano's games. "quiet" lines show now and then when nothing else is happening, each once per game
